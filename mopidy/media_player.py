@@ -509,7 +509,18 @@ class MopidyMediaPlayerEntity(MediaPlayerEntity):
             library_info["children"].append(self._media_item_payload(item))
             item_uri.append(item.uri)
 
-        images = self.client.library.get_images(item_uri)
+        # split up the list of images into lists with 50 elements (Mopidy limit)
+        s = 10
+        uri_set = [
+            item_uri[r * s : (r + 1) * s] for r in range((len(item_uri) + s - 1) // s)
+        ]
+        images = dict()
+        for s in uri_set:
+            _LOGGER.debug(len(s))
+            t = self.client.library.get_images(s)
+            _LOGGER.debug(t)
+            images.update(t)
+
         if len(images.keys()) > 0:
             for item in library_info["children"]:
                 if (
