@@ -31,3 +31,17 @@ media_player:
   platform: mopidy         # specify mopidy platform
 ```
 
+### Tests
+Mopidy v3.1.1
+
+Backends:
+- mopidy-beets v4.0.1
+- mopidy-dleyna 2.0.1
+- mopidy-internetarchive v3.0.0
+- mopidy-local v3.2.0
+- mopidy-podcast v3.0.0
+- mopidy-somafm v2.0.0
+- mopidy-soundcloud v3.0.1
+- mopidy-spotify v4.1.0
+- mopidy-tunein v1.0.2
+
