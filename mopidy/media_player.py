@@ -585,7 +585,7 @@ def fetch_media_class(item, default=None):
             else:
                 media_class = MEDIA_CLASS_DIRECTORY
 
-        elif source == "tunein":
+        elif source in ["tunein", "somafm", "internetarchive","soundcloud"]:
             media_class = MEDIA_CLASS_URL
         else:
             media_class = MEDIA_CLASS_DIRECTORY
