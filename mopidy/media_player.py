@@ -125,7 +125,6 @@ class MopidyMediaPlayerEntity(MediaPlayerEntity):
 
     def __init__(self, hostname, port, name):
         """Initialize the Mopidy device."""
-        _LOGGER.debug("Initializing MopidyMediaPlayerEntity for %s" % name)
         self.hostname = hostname
         self.port = port
         self.device_name = name
@@ -361,9 +360,6 @@ class MopidyMediaPlayerEntity(MediaPlayerEntity):
 
     def play_media(self, media_type, media_id, **kwargs):
         """Play a piece of media."""
-        _LOGGER.debug("media_type: %s" % media_type)
-        _LOGGER.debug("media_id: %s" % media_id)
-        _LOGGER.debug("kwargs: %s" % kwargs)
         if media_id is not None:
             self.client.tracklist.clear()
             self.client.tracklist.add(uris=[media_id])
@@ -463,7 +459,6 @@ class MopidyMediaPlayerEntity(MediaPlayerEntity):
         if not hasattr(item, "type") or not hasattr(item, "uri"):
             _LOGGER.error("Missing type or uri for media item: %s", item)
             raise MissingMediaInformation
-        _LOGGER.debug("%s:%s" % (item.uri, item.type))
 
         expandable = item.type not in [MEDIA_TYPE_TRACK, MEDIA_TYPE_EPISODE]
 
@@ -503,23 +498,27 @@ class MopidyMediaPlayerEntity(MediaPlayerEntity):
             "children": [],
         }
 
-        _LOGGER.debug("Looking up %s" % media_content_type)
         item_uri = []
         for item in self.client.library.browse(media_content_id):
             library_info["children"].append(self._media_item_payload(item))
             item_uri.append(item.uri)
 
-        # split up the list of images into lists with 50 elements (Mopidy limit)
-        s = 10
+        source = ""
+        if media_content_id is not None:
+            source = media_content_id.split(":")[0]
+
+        if source == "spotify":
+            # Spotify thumbnail lookup is throttled
+            s = 10
+        else:
+            s = 1000
         uri_set = [
             item_uri[r * s : (r + 1) * s] for r in range((len(item_uri) + s - 1) // s)
         ]
+
         images = dict()
         for s in uri_set:
-            _LOGGER.debug(len(s))
-            t = self.client.library.get_images(s)
-            _LOGGER.debug(t)
-            images.update(t)
+            images.update(self.client.library.get_images(s))
 
         if len(images.keys()) > 0:
             for item in library_info["children"]:
@@ -527,7 +526,14 @@ class MopidyMediaPlayerEntity(MediaPlayerEntity):
                     item.media_content_id in images
                     and len(images[item.media_content_id]) > 0
                 ):
-                    item.thumbnail = images[item.media_content_id][0].uri
+                    if source == "local":
+                        item.thumbnail = "http://%s:%d%s" % (
+                            self.hostname,
+                            self.port,
+                            images[item.media_content_id][0].uri,
+                        )
+                    else:
+                        item.thumbnail = images[item.media_content_id][0].uri
 
         res = BrowseMedia(**library_info)
         res.children_media_class = MEDIA_CLASS_DIRECTORY
@@ -536,16 +542,14 @@ class MopidyMediaPlayerEntity(MediaPlayerEntity):
 
 def fetch_media_class(item, default=None):
     """Fetch the media class of a library item"""
-    if hasattr(item, "uri"):
-        _LOGGER.debug("item uri: %s" % item.uri)
 
-    if hasattr(item, "type"):
-        _LOGGER.debug("item type: %s" % item.type)
+    if item is None:
+        return default
 
     if not hasattr(item, "type"):
         return default
 
-    if item is None:
+    if not hasattr(item, "uri"):
         return default
 
     uri = item.uri.split(":")
@@ -585,7 +589,7 @@ def fetch_media_class(item, default=None):
             else:
                 media_class = MEDIA_CLASS_DIRECTORY
 
-        elif source in ["tunein", "somafm", "internetarchive","soundcloud"]:
+        elif source in ["tunein", "somafm", "internetarchive", "soundcloud"]:
             media_class = MEDIA_CLASS_URL
         else:
             media_class = MEDIA_CLASS_DIRECTORY
