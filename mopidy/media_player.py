@@ -44,6 +44,9 @@ from homeassistant.components.media_player.const import (
     SUPPORT_REPEAT_SET,
     SUPPORT_SEEK,
     SUPPORT_SHUFFLE_SET,
+    SUPPORT_STOP,
+    SUPPORT_TURN_OFF,
+    SUPPORT_TURN_ON,
     SUPPORT_VOLUME_MUTE,
     SUPPORT_VOLUME_SET,
     SUPPORT_VOLUME_STEP,
@@ -56,6 +59,7 @@ from homeassistant.const import (
     STATE_UNAVAILABLE,
     STATE_PLAYING,
     STATE_PAUSED,
+    STATE_OFF,
     STATE_UNKNOWN,
 )
 
@@ -73,8 +77,11 @@ SUPPORT_MOPIDY = (
     | SUPPORT_PLAY_MEDIA
     | SUPPORT_PREVIOUS_TRACK
     | SUPPORT_REPEAT_SET
-    | SUPPORT_SEEK
     | SUPPORT_SHUFFLE_SET
+    | SUPPORT_SEEK
+    | SUPPORT_STOP
+    | SUPPORT_TURN_OFF
+    | SUPPORT_TURN_ON
     | SUPPORT_VOLUME_MUTE
     | SUPPORT_VOLUME_SET
     | SUPPORT_VOLUME_STEP
@@ -164,7 +171,7 @@ class MopidyMediaPlayerEntity(MediaPlayerEntity):
         elif state == "paused":
             self._state = STATE_PAUSED
         elif state == "stopped":
-            self._state = STATE_IDLE
+            self._state = STATE_OFF
         else:
             self._state = STATE_UNKNOWN
 
@@ -335,6 +342,14 @@ class MopidyMediaPlayerEntity(MediaPlayerEntity):
     def set_volume_level(self, volume):
         """Set volume level, range 0..1."""
         self.client.mixer.set_volume(int(volume * 100))
+
+    def turn_off(self):
+        """Turn the media player off."""
+        self.client.playback.stop()
+
+    def turn_on(self):
+        """Turn the media player on."""
+        self.client.playback.play()
 
     def media_play(self):
         """Send play command."""
