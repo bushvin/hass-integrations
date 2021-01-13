@@ -43,6 +43,7 @@ from homeassistant.components.media_player.const import (
     SUPPORT_PREVIOUS_TRACK,
     SUPPORT_REPEAT_SET,
     SUPPORT_SEEK,
+    SUPPORT_SELECT_SOURCE,
     SUPPORT_SHUFFLE_SET,
     SUPPORT_STOP,
     SUPPORT_TURN_OFF,
@@ -82,6 +83,7 @@ SUPPORT_MOPIDY = (
     | SUPPORT_STOP
     | SUPPORT_TURN_OFF
     | SUPPORT_TURN_ON
+    | SUPPORT_SELECT_SOURCE
     | SUPPORT_VOLUME_MUTE
     | SUPPORT_VOLUME_SET
     | SUPPORT_VOLUME_STEP
@@ -149,6 +151,8 @@ class MopidyMediaPlayerEntity(MediaPlayerEntity):
         self._media_image_url = None
         self._shuffled = None
         self._repeat_mode = None
+        self._playlists = []
+        self._currentplaylist = None
 
         self.client = None
         self._available = None
@@ -190,6 +194,8 @@ class MopidyMediaPlayerEntity(MediaPlayerEntity):
             self._media_image_url = None
 
         self._shuffled = self.client.tracklist.get_random()
+        self.client.playlists.refresh()
+        self._playlists = self.client.playlists.as_list()
 
         repeat = self.client.tracklist.get_repeat()
         single = self.client.tracklist.get_single()
@@ -309,12 +315,14 @@ class MopidyMediaPlayerEntity(MediaPlayerEntity):
     @property
     def media_playlist(self):
         """Title of Playlist currently playing."""
+        if self._currentplaylist is not None:
+            return self._currentplaylist
+
         if hasattr(self.player_currenttrack, "album") and hasattr(
             self.player_currenttrack.album, "name"
         ):
             return self.player_currenttrack.album.name
 
-        # Check what to do when it's a playlist...
         return None
 
     @property
@@ -330,10 +338,17 @@ class MopidyMediaPlayerEntity(MediaPlayerEntity):
     @property
     def supported_features(self):
         """Flag media player features that are supported."""
-        # if not self._available:
-        #    return 0
-
         return SUPPORT_MOPIDY
+
+    @property
+    def source(self):
+        """Name of the current input source."""
+        return None
+
+    @property
+    def source_list(self):
+        """Return the list of available input sources."""
+        return [el.name for el in self._playlists]
 
     def mute_volume(self, mute):
         """Mute the volume."""
@@ -377,11 +392,29 @@ class MopidyMediaPlayerEntity(MediaPlayerEntity):
 
     def play_media(self, media_type, media_id, **kwargs):
         """Play a piece of media."""
+        if media_type == MEDIA_TYPE_PLAYLIST:
+            self._currentplaylist = None
+            for el in self._playlists:
+                if el.uri == media_id:
+                    self._currentplaylist = el.name
+        else:
+            self._currentplaylist = None
+            _LOGGER.warning("Unknown playlist name %s", media_id)
+
         if media_id is not None:
             self.client.tracklist.clear()
             self.client.tracklist.add(uris=[media_id])
+            self.client.playback.play()
 
         self.client.playback.play()
+
+    def select_source(self, source):
+        """Select input source."""
+        for el in self._playlists:
+            if el.name == source:
+                self.play_media(MEDIA_TYPE_PLAYLIST, el.uri)
+                return el.uri
+        raise ValueError("Could not find %s" % source)
 
     def clear_playlist(self):
         """Clear players playlist."""
@@ -441,7 +474,7 @@ class MopidyMediaPlayerEntity(MediaPlayerEntity):
                 host=self.hostname, port=self.port, use_websocket=False
             )
             self.server_version = self.client.rpc_call("core.get_version")
-            _LOGGER.info(
+            _LOGGER.debug(
                 "Connection to Mopidy server %s (%s:%s) established"
                 % (self.device_name, self.hostname, self.port)
             )
