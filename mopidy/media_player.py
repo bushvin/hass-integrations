@@ -655,6 +655,11 @@ def fetch_media_info(
     source = media_uri.partition(":")[0]
     uri = media_uri.partition(":")[2]
 
+    _LOGGER.debug("media_type: %s" % media_type)
+    _LOGGER.debug("media_uri: %s" % media_uri)
+    _LOGGER.debug("source: %s" % source)
+    _LOGGER.debug("uri: %s" % uri)
+
     if media_type == "directory":
         res["media_class"] = MEDIA_CLASS_DIRECTORY
         res["children_media_class"] = MEDIA_CLASS_DIRECTORY
@@ -743,7 +748,7 @@ def fetch_media_info(
             res["media_class"] = MEDIA_CLASS_ARTIST
             res["children_media_class"] = MEDIA_CLASS_ALBUM
 
-    if source == "spotify":
+    elif source == "spotify":
         if media_type == "directory" and uri == "top:tracks:countries":
             res["media_class"] = MEDIA_CLASS_DIRECTORY
             res["children_media_class"] = MEDIA_CLASS_DIRECTORY
@@ -788,4 +793,14 @@ def fetch_media_info(
         elif media_type == "directory" and uri == "directory":
             res["title"] = "Spotify"
 
+    elif source[:7] == "podcast":
+        if media_type == "album":
+            res["media_class"] = MEDIA_CLASS_DIRECTORY
+            res["children_media_class"] = MEDIA_CLASS_PODCAST
+
+        elif media_type == "track":
+            res["media_class"] = MEDIA_CLASS_PODCAST
+            res["children_media_class"] = MEDIA_CLASS_PODCAST
+
+    _LOGGER.debug("res: %s" % res)
     return res
