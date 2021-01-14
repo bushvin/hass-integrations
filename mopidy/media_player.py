@@ -194,7 +194,6 @@ class MopidyMediaPlayerEntity(MediaPlayerEntity):
             self._media_image_url = None
 
         self._shuffled = self.client.tracklist.get_random()
-        self.client.playlists.refresh()
         self._playlists = self.client.playlists.as_list()
 
         repeat = self.client.tracklist.get_repeat()
