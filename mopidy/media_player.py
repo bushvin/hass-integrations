@@ -391,18 +391,20 @@ class MopidyMediaPlayerEntity(MediaPlayerEntity):
 
     def play_media(self, media_type, media_id, **kwargs):
         """Play a piece of media."""
+
+        self._currentplaylist = None
         if media_type == MEDIA_TYPE_PLAYLIST:
-            self._currentplaylist = None
             for el in self._playlists:
                 if el.uri == media_id:
                     self._currentplaylist = el.name
+            p = self.client.playlists.lookup(el.uri)
+            media_uris = [t.uri for t in p.tracks]
         else:
-            self._currentplaylist = None
-            _LOGGER.warning("Unknown playlist name %s", media_id)
+            media_uris = [media_id]
 
         if media_id is not None:
             self.client.tracklist.clear()
-            self.client.tracklist.add(uris=[media_id])
+            self.client.tracklist.add(uris=media_uris)
             self.client.playback.play()
 
         self.client.playback.play()
