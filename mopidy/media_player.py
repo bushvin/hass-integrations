@@ -142,6 +142,7 @@ class MopidyMediaPlayerEntity(MediaPlayerEntity):
 
         self.server_version = None
         self.player_currenttrack = None
+        self.player_currenttrach_source = None
 
         self._media_position = None
         self._media_position_updated_at = None
@@ -161,6 +162,12 @@ class MopidyMediaPlayerEntity(MediaPlayerEntity):
         """Fetch status from Mopidy."""
         _LOGGER.debug("Fetching Mopidy Server status for %s" % self.device_name)
         self.player_currenttrack = self.client.playback.get_current_track()
+        if hasattr(self.player_currenttrack, "uri"):
+            self.player_currenttrach_source = self.player_currenttrack.uri.partition(
+                ":"
+            )[0]
+        else:
+            self.player_currenttrach_source = None
 
         media_position = int(self.client.playback.get_time_position() / 1000)
         if media_position != self._media_position:
@@ -190,6 +197,12 @@ class MopidyMediaPlayerEntity(MediaPlayerEntity):
                 and hasattr(res[self.player_currenttrack.uri][0], "uri")
             ):
                 self._media_image_url = res[self.player_currenttrack.uri][0].uri
+                if self.player_currenttrach_source == "local":
+                    self._media_image_url = "http://%s:%s%s" % (
+                        self.hostname,
+                        self.port,
+                        self._media_image_url,
+                    )
         else:
             self._media_image_url = None
 
@@ -391,23 +404,26 @@ class MopidyMediaPlayerEntity(MediaPlayerEntity):
 
     def play_media(self, media_type, media_id, **kwargs):
         """Play a piece of media."""
-
         self._currentplaylist = None
         if media_type == MEDIA_TYPE_PLAYLIST:
-            for el in self._playlists:
-                if el.uri == media_id:
-                    self._currentplaylist = el.name
-            p = self.client.playlists.lookup(el.uri)
-            media_uris = [t.uri for t in p.tracks]
+            p = self.client.playlists.lookup(media_id)
+            self._currentplaylist = p.name
+            if media_id.partition(":")[0] == "m3u":
+                media_uris = [t.uri for t in p.tracks]
+            else:
+                media_uris = [media_id]
         else:
             media_uris = [media_id]
 
-        if media_id is not None:
+        if len(media_uris) > 0:
             self.client.tracklist.clear()
             self.client.tracklist.add(uris=media_uris)
             self.client.playback.play()
-
-        self.client.playback.play()
+        else:
+            _LOGGER.error(
+                "No media for %s (%s) could be found." % (media_id, media_type)
+            )
+            raise MissingMediaInformation
 
     def select_source(self, source):
         """Select input source."""
@@ -656,10 +672,11 @@ def fetch_media_info(
     source = media_uri.partition(":")[0]
     uri = media_uri.partition(":")[2]
 
-    _LOGGER.debug("media_type: %s" % media_type)
-    _LOGGER.debug("media_uri: %s" % media_uri)
-    _LOGGER.debug("source: %s" % source)
-    _LOGGER.debug("uri: %s" % uri)
+    if False:
+        _LOGGER.debug("media_type: %s" % media_type)
+        _LOGGER.debug("media_uri: %s" % media_uri)
+        _LOGGER.debug("source: %s" % source)
+        _LOGGER.debug("uri: %s" % uri)
 
     if media_type == "directory":
         res["media_class"] = MEDIA_CLASS_DIRECTORY
@@ -803,5 +820,5 @@ def fetch_media_info(
             res["media_class"] = MEDIA_CLASS_PODCAST
             res["children_media_class"] = MEDIA_CLASS_PODCAST
 
-    _LOGGER.debug("res: %s" % res)
+    # _LOGGER.debug("res: %s" % res)
     return res
