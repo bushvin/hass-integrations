@@ -84,9 +84,6 @@ SUPPORT_MOPIDY = (
     | SUPPORT_TURN_OFF
     | SUPPORT_TURN_ON
     | SUPPORT_SELECT_SOURCE
-    | SUPPORT_VOLUME_MUTE
-    | SUPPORT_VOLUME_SET
-    | SUPPORT_VOLUME_STEP
 )
 
 MEDIA_TYPE_SHOW = "show"
@@ -158,6 +155,8 @@ class MopidyMediaPlayerEntity(MediaPlayerEntity):
         self.client = None
         self._available = None
 
+        self._has_support_volume = None
+
     def _fetch_status(self):
         """Fetch status from Mopidy."""
         _LOGGER.debug("Fetching Mopidy Server status for %s" % self.device_name)
@@ -186,7 +185,13 @@ class MopidyMediaPlayerEntity(MediaPlayerEntity):
         else:
             self._state = STATE_UNKNOWN
 
-        self._volume = float(self.client.mixer.get_volume() / 100)
+        try:
+            self._volume = float(self.client.mixer.get_volume() / 100)
+            self._has_support_volume = True
+        except:
+            self._volume = None
+            self._has_support_volume = False
+
         self._muted = self.client.mixer.get_mute()
 
         if hasattr(self.player_currenttrack, "uri"):
@@ -350,7 +355,12 @@ class MopidyMediaPlayerEntity(MediaPlayerEntity):
     @property
     def supported_features(self):
         """Flag media player features that are supported."""
-        return SUPPORT_MOPIDY
+        support = SUPPORT_MOPIDY
+        if self._has_support_volume:
+            support = (
+                support | SUPPORT_VOLUME_MUTE | SUPPORT_VOLUME_SET | SUPPORT_VOLUME_STEP
+            )
+        return support
 
     @property
     def source(self):
