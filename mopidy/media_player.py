@@ -110,6 +110,7 @@ PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend(
 )
 
 CACHE_ROSETTA = {}
+CACHE_URL = {}
 
 
 class MissingMediaInformation(BrowseError):
@@ -588,8 +589,8 @@ class MopidyMediaPlayerEntity(MediaPlayerEntity):
                 payload["media_content_id"] in image
                 and len(image[payload["media_content_id"]]) > 0
             ):
-                library_info["thumbnail"] = self._media_item_image_url(
-                    source, image[payload["media_content_id"]][0].uri
+                library_info["thumbnail"] = self.get_browse_image_url(
+                    media_content_type, media_content_id
                 )
 
         children_uri = []
@@ -599,31 +600,6 @@ class MopidyMediaPlayerEntity(MediaPlayerEntity):
                     {"name": item.name, "type": item.type, "uri": item.uri}
                 )
             )
-            children_uri.append(item.uri)
-
-        if source == "spotify":
-            # Spotify thumbnail lookup is throttled
-            s = 10
-        else:
-            s = 1000
-        uri_set = [
-            children_uri[r * s : (r + 1) * s]
-            for r in range((len(children_uri) + s - 1) // s)
-        ]
-
-        images = dict()
-        for s in uri_set:
-            images.update(self.client.library.get_images(s))
-
-        if len(images.keys()) > 0:
-            for item in library_info["children"]:
-                if (
-                    item.media_content_id in images
-                    and len(images[item.media_content_id]) > 0
-                ):
-                    item.thumbnail = self._media_item_image_url(
-                        source, images[item.media_content_id][0].uri
-                    )
 
         library_info["can_play"] = (
             library_info["media_content_type"] in PLAYABLE_MEDIA_TYPES
@@ -659,10 +635,32 @@ class MopidyMediaPlayerEntity(MediaPlayerEntity):
             can_expand=can_expand,
             title=item.get("name"),
         )
+        if media_type != "directory":
+            payload["thumbnail"] = self.get_browse_image_url(media_type, media_id)
+
         CACHE_ROSETTA[media_id] = payload["title"]
         extra_info = fetch_media_info(media_type, media_id)
         payload.update(extra_info)
         return BrowseMedia(**payload)
+
+    async def async_get_browse_image(
+        self, media_content_type, media_content_id, media_image_id=None
+    ):
+        """Serve album art. Returns (content, content_type)."""
+
+        t = media_content_id.partition(":")
+
+        if media_content_id in CACHE_URL:
+            image_url = self._media_item_image_url(t[0], CACHE_URL[media_content_id])
+            return self._async_fetch_image(image_url)
+
+        url = self.client.library.get_images([media_content_id])
+        if media_content_id in url and len(url[media_content_id]) > 0:
+            image_url = self._media_item_image_url(t[0], url[media_content_id][0].uri)
+            CACHE_URL[media_content_id] = image_url
+            return await self._async_fetch_image(image_url)
+
+        return (None, None)
 
 
 def fetch_media_info(
