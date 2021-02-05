@@ -185,12 +185,12 @@ class MopidyMediaPlayerEntity(MediaPlayerEntity):
         else:
             self._state = STATE_UNKNOWN
 
-        try:
-            self._volume = float(self.client.mixer.get_volume() / 100)
+        v = self.client.mixer.get_volume()
+        self._volume = None
+        self._has_support_volume = False
+        if v is not None:
+            self._volume = float(v / 100)
             self._has_support_volume = True
-        except:
-            self._volume = None
-            self._has_support_volume = False
 
         self._muted = self.client.mixer.get_mute()
 
