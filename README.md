@@ -33,9 +33,9 @@ media_player:
 
 ### Notes
 Due to the nature of the way Mopidy provides thumbnails of the media,
-proxying them throught Home Assistant is very intensive, causing delays.
-Therefore, I have decided to not proxy the art when using the Media 
-Library for the time being.
+proxying them through Home Assistant is very resource intensive, 
+causing delays. Therefore, I have decided to not proxy the art when
+using the Media Library for the time being.
 
 ### Tests
 Mopidy v3.1.1
