@@ -31,6 +31,12 @@ media_player:
   platform: mopidy         # specify mopidy platform
 ```
 
+### Notes
+Due to the nature of the way Mopidy provides thumbnails of the media,
+proxying them throught Home Assistant is very intensive, causing delays.
+Therefore, I have decided to not proxy the art when using the Media 
+Library for the time being.
+
 ### Tests
 Mopidy v3.1.1
 
@@ -44,4 +50,5 @@ Backends:
 - mopidy-soundcloud v3.0.1
 - mopidy-spotify v4.1.0
 - mopidy-tunein v1.0.2
+- mopidy-YouTube v3.2
 
