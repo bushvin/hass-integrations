@@ -35,7 +35,7 @@ media_player:
 #### Service media_player.play_media
 The `media_content_id` needs to be formatted according to the Mopidy URI scheme. These can be easily found using the *Developer tools*.
 
-When using the `play_media` service, the Mopidy Media Player platform will attempt to discover your URL when possible.
+When using the `play_media` service, the Mopidy Media Player platform will attempt to discover your URL when not properly formatted.
 Currently supported for:
 - Youtube
 
