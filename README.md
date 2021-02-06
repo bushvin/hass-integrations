@@ -31,6 +31,14 @@ media_player:
   platform: mopidy         # specify mopidy platform
 ```
 
+### Services
+#### Service media_player.play_media
+The `media_content_id` needs to be formatted according to the Mopidy URI scheme. These can be easily found using the *Developer tools*.
+
+When using the `play_media` service, the Mopidy Media Player platform will attempt to discover your URL when possible.
+Currently supported for:
+- Youtube
+
 ### Notes
 Due to the nature of the way Mopidy provides thumbnails of the media,
 proxying them through Home Assistant is very resource intensive, 
