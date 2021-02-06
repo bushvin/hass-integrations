@@ -415,6 +415,7 @@ class MopidyMediaPlayerEntity(MediaPlayerEntity):
     def play_media(self, media_type, media_id, **kwargs):
         """Play a piece of media."""
         self._currentplaylist = None
+
         if media_type == MEDIA_TYPE_PLAYLIST:
             p = self.client.playlists.lookup(media_id)
             self._currentplaylist = p.name
@@ -425,10 +426,25 @@ class MopidyMediaPlayerEntity(MediaPlayerEntity):
         else:
             media_uris = [media_id]
 
+        t_uris = []
+        schemes = self.client.rpc_call("core.get_uri_schemes")
+        for uri in media_uris:
+            if "yt" in schemes and (
+                uri.startswith("https://www.youtube.com/")
+                or uri.startswith("https://youtube.com/")
+                or uri.startswith("https://youtu.be/")
+            ):
+                t_uris.append("yt:%s" % uri)
+            else:
+                t_uris.append(uri)
+
+        media_uris = t_uris
+
         if len(media_uris) > 0:
             self.client.tracklist.clear()
             self.client.tracklist.add(uris=media_uris)
             self.client.playback.play()
+
         else:
             _LOGGER.error(
                 "No media for %s (%s) could be found." % (media_id, media_type)
