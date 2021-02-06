@@ -203,7 +203,9 @@ class MopidyMediaPlayerEntity(MediaPlayerEntity):
             ):
                 self._media_image_url = res[self.player_currenttrack.uri][0].uri
                 if self.player_currenttrach_source == "local":
-                    self._media_image_url = f"http://{self.hostname}:{self.port}{self._media_image_url}"
+                    self._media_image_url = (
+                        f"http://{self.hostname}:{self.port}{self._media_image_url}"
+                    )
         else:
             self._media_image_url = None
 
@@ -442,9 +444,7 @@ class MopidyMediaPlayerEntity(MediaPlayerEntity):
             self.client.playback.play()
 
         else:
-            _LOGGER.error(
-                "No media for %s (%s) could be found.", media_id, media_type
-            )
+            _LOGGER.error("No media for %s (%s) could be found.", media_id, media_type)
             raise MissingMediaInformation
 
     def select_source(self, source):
@@ -514,13 +514,17 @@ class MopidyMediaPlayerEntity(MediaPlayerEntity):
             )
             self.server_version = self.client.rpc_call("core.get_version")
             _LOGGER.debug(
-                "Connection to Mopidy server %s (%s:%s) established"
-                , self.device_name, self.hostname, self.port
+                "Connection to Mopidy server %s (%s:%s) established",
+                self.device_name,
+                self.hostname,
+                self.port,
             )
         except reConnectionError as error:
             _LOGGER.error(
-                "Cannot connect to %s @ %s:%s"
-                , self.device_name, self.hostname, self.port
+                "Cannot connect to %s @ %s:%s",
+                self.device_name,
+                self.hostname,
+                self.port,
             )
             _LOGGER.error(error)
             self._available = False
