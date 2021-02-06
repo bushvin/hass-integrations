@@ -159,7 +159,7 @@ class MopidyMediaPlayerEntity(MediaPlayerEntity):
 
     def _fetch_status(self):
         """Fetch status from Mopidy."""
-        _LOGGER.debug("Fetching Mopidy Server status for %s" % self.device_name)
+        _LOGGER.debug("Fetching Mopidy Server status for %s", self.device_name)
         self.player_currenttrack = self.client.playback.get_current_track()
         if hasattr(self.player_currenttrack, "uri"):
             self.player_currenttrach_source = self.player_currenttrack.uri.partition(
@@ -203,11 +203,7 @@ class MopidyMediaPlayerEntity(MediaPlayerEntity):
             ):
                 self._media_image_url = res[self.player_currenttrack.uri][0].uri
                 if self.player_currenttrach_source == "local":
-                    self._media_image_url = "http://%s:%s%s" % (
-                        self.hostname,
-                        self.port,
-                        self._media_image_url,
-                    )
+                    self._media_image_url = f"http://{self.hostname}:{self.port}{self._media_image_url}"
         else:
             self._media_image_url = None
 
@@ -434,7 +430,7 @@ class MopidyMediaPlayerEntity(MediaPlayerEntity):
                 or uri.startswith("https://youtube.com/")
                 or uri.startswith("https://youtu.be/")
             ):
-                t_uris.append("yt:%s" % uri)
+                t_uris.append(f"yt:{uri}")
             else:
                 t_uris.append(uri)
 
@@ -447,7 +443,7 @@ class MopidyMediaPlayerEntity(MediaPlayerEntity):
 
         else:
             _LOGGER.error(
-                "No media for %s (%s) could be found." % (media_id, media_type)
+                "No media for %s (%s) could be found.", media_id, media_type
             )
             raise MissingMediaInformation
 
@@ -457,7 +453,7 @@ class MopidyMediaPlayerEntity(MediaPlayerEntity):
             if el.name == source:
                 self.play_media(MEDIA_TYPE_PLAYLIST, el.uri)
                 return el.uri
-        raise ValueError("Could not find %s" % source)
+        raise ValueError(f"Could not find {source}")
 
     def clear_playlist(self):
         """Clear players playlist."""
@@ -506,7 +502,7 @@ class MopidyMediaPlayerEntity(MediaPlayerEntity):
         return {
             "indentifiers": {(DOMAIN, self.device_name)},
             "manufacturer": "Mopidy",
-            "model": "Mopidy server %s" % self.server_version,
+            "model": f"Mopidy server {self.server_version}",
             "name": self.device_name,
             "sw_version": self.server_version,
         }
@@ -519,12 +515,12 @@ class MopidyMediaPlayerEntity(MediaPlayerEntity):
             self.server_version = self.client.rpc_call("core.get_version")
             _LOGGER.debug(
                 "Connection to Mopidy server %s (%s:%s) established"
-                % (self.device_name, self.hostname, self.port)
+                , self.device_name, self.hostname, self.port
             )
         except reConnectionError as error:
             _LOGGER.error(
                 "Cannot connect to %s @ %s:%s"
-                % (self.device_name, self.hostname, self.port)
+                , self.device_name, self.hostname, self.port
             )
             _LOGGER.error(error)
             self._available = False
@@ -558,13 +554,9 @@ class MopidyMediaPlayerEntity(MediaPlayerEntity):
         """Return the correct url to the item's thumbnail."""
 
         if source == "local":
-            url = "http://%s:%d%s" % (
-                self.hostname,
-                self.port,
-                url,
-            )
+            url = f"http://{self.hostname}:{self.port}{url}"
 
-        url = "%s?t=x" % url
+        url = f"{url}?t=x" % url
         return url
 
     def _media_library_payload(self, payload):
@@ -699,10 +691,10 @@ def fetch_media_info(
     uri = media_uri.partition(":")[2]
 
     if False:
-        _LOGGER.debug("media_type: %s" % media_type)
-        _LOGGER.debug("media_uri: %s" % media_uri)
-        _LOGGER.debug("source: %s" % source)
-        _LOGGER.debug("uri: %s" % uri)
+        _LOGGER.debug(f"media_type: {media_type}")
+        _LOGGER.debug(f"media_uri: {media_uri}")
+        _LOGGER.debug(f"source: {source}")
+        _LOGGER.debug(f"uri: {uri}")
 
     if media_type == "directory":
         res["media_class"] = MEDIA_CLASS_DIRECTORY
@@ -846,5 +838,4 @@ def fetch_media_info(
             res["media_class"] = MEDIA_CLASS_PODCAST
             res["children_media_class"] = MEDIA_CLASS_PODCAST
 
-    # _LOGGER.debug("res: %s" % res)
     return res
