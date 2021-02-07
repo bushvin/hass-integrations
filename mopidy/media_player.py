@@ -560,7 +560,7 @@ class MopidyMediaPlayerEntity(MediaPlayerEntity):
         if source == "local":
             url = f"http://{self.hostname}:{self.port}{url}"
 
-        url = f"{url}?t=x" % url
+        url = f"{url}?t=x"
         return url
 
     def _media_library_payload(self, payload):
