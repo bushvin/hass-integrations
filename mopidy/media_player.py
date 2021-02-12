@@ -139,6 +139,7 @@ class MopidyMediaPlayerEntity(MediaPlayerEntity):
 
         self.server_version = None
         self.player_currenttrack = None
+        self.player_streamttile = None
         self.player_currenttrach_source = None
 
         self._media_position = None
@@ -161,6 +162,8 @@ class MopidyMediaPlayerEntity(MediaPlayerEntity):
         """Fetch status from Mopidy."""
         _LOGGER.debug("Fetching Mopidy Server status for %s", self.device_name)
         self.player_currenttrack = self.client.playback.get_current_track()
+        self.player_streamttile = self.client.playback.get_stream_title()
+
         if hasattr(self.player_currenttrack, "uri"):
             self.player_currenttrach_source = self.player_currenttrack.uri.partition(
                 ":"
@@ -293,6 +296,9 @@ class MopidyMediaPlayerEntity(MediaPlayerEntity):
     @property
     def media_title(self):
         """Return the title of current playing media."""
+        if self.player_streamttile is not None:
+            return self.player_streamttile
+
         if hasattr(self.player_currenttrack, "name"):
             return self.player_currenttrack.name
         return None
@@ -300,6 +306,10 @@ class MopidyMediaPlayerEntity(MediaPlayerEntity):
     @property
     def media_artist(self):
         """Artist of current playing media, music track only."""
+        if self.player_streamttile is not None:
+            if hasattr(self.player_currenttrack, "name"):
+                return self.player_currenttrack.name
+
         if hasattr(self.player_currenttrack, "artists"):
             return ", ".join([a.name for a in self.player_currenttrack.artists])
         return None
