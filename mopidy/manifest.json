@@ -3,6 +3,8 @@
   "name": "Mopidy",
   "documentation": "https://www.home-assistant.io/integrations/mopidy",
   "requirements": ["mopidyapi==1.0.0"],
-  "codeowners": ["@bushvin"]
+  "codeowners": ["@bushvin"],
+  "config_flow": true,
+  "zeroconf": [{ "type": "_http._tcp.local.", "name": "mopidy*" }]
 }
 
