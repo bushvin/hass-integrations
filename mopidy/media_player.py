@@ -67,6 +67,8 @@ from homeassistant.const import (
 from .const import (
     DOMAIN,
     ICON,
+    DEFAULT_NAME,
+    DEFAULT_PORT
 )
 
 SUPPORT_MOPIDY = (
@@ -98,8 +100,6 @@ PLAYABLE_MEDIA_TYPES = [
 ]
 
 _LOGGER = logging.getLogger(__name__)
-DEFAULT_NAME = "Mopidy"
-DEFAULT_PORT = 6680
 
 PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend(
     {
