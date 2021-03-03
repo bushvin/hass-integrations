@@ -26,7 +26,7 @@ media_player:
 
 ```yaml
 - name: <mopidy name>      # The name of your Mopidy server.
-  host: <fqdn/ip address>  # The FQDN or IP address of your Mopidy Server
+  host: <fqdn/ip address>  # The FQDN or IP address of your Mopidy Server, do not use ::1, localhost or 127.0.0.1
   port: <port number>      # The port number of the Mopidy Server, default: 6680
   platform: mopidy         # specify mopidy platform
 ```
