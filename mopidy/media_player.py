@@ -116,6 +116,27 @@ class MissingMediaInformation(BrowseError):
     """Missing media required information."""
 
 
+async def async_setup_entry(hass: HomeAssistant, config: ConfigEntry, async_add_entities):
+    """Set up the Mopidy media player platform."""
+
+    host = config.get(CONF_HOST)
+    port = config.get(CONF_PORT)
+    name = config.get(CONF_NAME)
+
+    entity = MopidyMediaPlayerEntity(host, port, name)
+    async_add_entities([entity], True)
+
+    #data = hass.data[DOMAIN][config_entry.entry_id]
+    #volumio = data[DATA_VOLUMIO]
+    #info = data[DATA_INFO]
+    #uid = config_entry.data[CONF_ID]
+    #name = config_entry.data[CONF_NAME]
+
+    #entity = Volumio(volumio, uid, name, info)
+    #async_add_entities([entity])
+
+
+
 async def async_setup_platform(
     hass: HomeAssistant, config: ConfigEntry, async_add_entities, discover_info=None
 ):
