@@ -69,7 +69,7 @@ class MopidyConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             self._uuid = re.sub(r"[._-]+", "_", self._host)
 
             try:
-                await hass.async_add_executor_job(_validate_input, entry.data[CONF_HOST], entry.data[CONF_PORT])
+                await self.hass.async_add_executor_job(_validate_input, self._host, self._port)
             except reConnectionError as error:
                 errors["base"] = "cannot_connect"
             except Exception:
