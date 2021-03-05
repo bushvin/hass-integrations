@@ -18,21 +18,22 @@ async def async_setup(hass: HomeAssistant, config: dict):
     """Set up the mopidy component."""
     return True
 
+def _test_connection(host, port):
+    client = MopidyAPI(
+        host=host, port=port, use_websocket=False
+    )
+    i = client.rpc_call("core.get_version")
+    return True
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
     """Set up the mopidy from a config entry."""
-
     try:
-        client = MopidyAPI(
-            host=entry.data[CONF_HOST], port=entry.data[CONF_PORT], use_websocket=False
-        )
-        i = client.rpc_call("core.get_version")
+        r = await hass.async_add_executor_job(_test_connection, entry.data[CONF_HOST], entry.data[CONF_PORT])
 
     except reConnectionError as error:
         raise ConfigEntryNotReady from error
 
     hass.data.setdefault(DOMAIN, {})
-    hass.data[DOMAIN][entry.entry_id] = {"mopidy_client": client}
 
     hass.async_create_task(
         hass.config_entries.async_forward_entry_setup(entry, MEDIA_PLAYER_DOMAIN)

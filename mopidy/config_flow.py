@@ -18,6 +18,12 @@ from .const import DOMAIN, DEFAULT_NAME, DEFAULT_PORT
 _LOGGER = logging.getLogger(__name__)
 
 
+def _validate_input(host, port):
+    """Validate the user input."""
+    client = MopidyAPI( host=host, port=port, use_websocket=False )
+    t = client.rpc_call("core.get_version")
+    return True
+
 class MopidyConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     """Handle config flow for Mopidy Servers."""
 
@@ -63,10 +69,7 @@ class MopidyConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             self._uuid = re.sub(r"[._-]+", "_", self._host)
 
             try:
-                client = MopidyAPI(
-                    host=self._host, port=self._port, use_websocket=False
-                )
-                t = client.rpc_call("core.get_version")
+                await hass.async_add_executor_job(_validate_input, entry.data[CONF_HOST], entry.data[CONF_PORT])
             except reConnectionError as error:
                 errors["base"] = "cannot_connect"
             except Exception:

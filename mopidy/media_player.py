@@ -117,9 +117,6 @@ async def async_setup_entry(
     hass: HomeAssistant, config_entry: ConfigEntry, async_add_entities
 ):
     """Set up the Mopidy platform."""
-    _LOGGER.debug(config_entry.data)
-    data = hass.data[DOMAIN][config_entry.entry_id]
-    # client = data["mopidy_client"]
     uid = config_entry.data[CONF_ID]
     name = config_entry.data[CONF_NAME]
     host = config_entry.data[CONF_HOST]
@@ -153,8 +150,6 @@ class MopidyMediaPlayerEntity(MediaPlayerEntity):
             self.uuid = re.sub("[._-]+", "_", hostname)
         else:
             self.uuid = uuid
-
-        _LOGGER.debug("uuid %s" % self.uuid)
 
         self.server_version = None
         self.player_currenttrack = None
