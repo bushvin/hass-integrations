@@ -1,4 +1,5 @@
-"Config flow for Mopidy."""
+"Config flow for Mopidy." ""
+import re
 import logging
 from typing import Optional
 
@@ -10,25 +11,12 @@ from homeassistant import config_entries, exceptions
 from homeassistant.const import CONF_HOST, CONF_ID, CONF_NAME, CONF_PORT
 from homeassistant.core import callback
 from homeassistant.helpers.typing import DiscoveryInfoType
-#from homeassistant.helpers.config_entry_flow
+import homeassistant.helpers.config_validation as cv
 
 from .const import DOMAIN, DEFAULT_NAME, DEFAULT_PORT
 
 _LOGGER = logging.getLogger(__name__)
 
-DATA_SCHEMA = vol.Schema(
-        {vol.Required(CONF_NAME): str, vol.Required(CONF_HOST): str,vol.Required(CONF_PORT, default=DEFAULT_PORT): int}
-)
-
-async def validate_input(hass, host, port):
-    """Validate user input"""
-    try:
-        client = MopidyAPI(
-            host=host, port=port, use_websocket=False
-        )
-        return client.rpc_call("core.get_version")
-    except reConnectionError as error:
-        raise CannotConnect from error
 
 class MopidyConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     """Handle config flow for Mopidy Servers."""
@@ -50,7 +38,8 @@ class MopidyConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             data={
                 CONF_NAME: self._name,
                 CONF_HOST: self._host,
-                CONF_PORT: self._port
+                CONF_PORT: self._port,
+                CONF_ID: self._uuid,
             },
         )
 
@@ -60,7 +49,7 @@ class MopidyConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             updates={
                 CONF_HOST: self._host,
                 CONF_PORT: self._port,
-                CONF_NAME: self._name
+                CONF_NAME: self._name,
             }
         )
 
@@ -68,50 +57,34 @@ class MopidyConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         """Handle the initial step."""
         errors = {}
         if user_input is not None:
-            info = None
             self._host = user_input[CONF_HOST]
             self._port = user_input[CONF_PORT]
+            self._name = user_input[CONF_NAME]
+            self._uuid = re.sub(r"[._-]+", "_", self._host)
+
             try:
-                info = await validate_input(self.hass, self._host, self._port)
-            except CannotConnect:
+                client = MopidyAPI(
+                    host=self._host, port=self._port, use_websocket=False
+                )
+                t = client.rpc_call("core.get_version")
+            except reConnectionError as error:
                 errors["base"] = "cannot_connect"
-            except Exception:  # pylint: disable=broad-except
+            except Exception:
                 _LOGGER.exception("Unexpected exception")
                 errors["base"] = "unknown"
 
-            if info is not None:
-                self._name = user_input[CONF_NAME]
-
+            if not errors:
+                await self._set_uid_and_abort()
                 return self._async_get_entry()
 
         return self.async_show_form(
-            step_id="user", data_schema=DATA_SCHEMA, errors=errors
+            step_id="user",
+            data_schema=vol.Schema(
+                {
+                    vol.Required(CONF_NAME): cv.string,
+                    vol.Required(CONF_HOST): cv.string,
+                    vol.Required(CONF_PORT, default=DEFAULT_PORT): cv.positive_int,
+                }
+            ),
+            errors=errors,
         )
-
-    async def async_step_zeroconf(self, discovery_info: DiscoveryInfoType):
-        """Handle zeroconf discovery."""
-        self._host = discovery_info["host"]
-        self._port = int(discovery_info["port"])
-        self._name = discovery_info["properties"]["volumioName"]
-        self._uuid = discovery_info["properties"]["UUID"]
-
-        await self._set_uid_and_abort()
-
-        return await self.async_step_discovery_confirm()
-
-    async def async_step_discovery_confirm(self, user_input=None):
-        """Handle user-confirmation of discovered node."""
-        if user_input is not None:
-            try:
-                await validate_input(self.hass, self._host, self._port)
-                return self._async_get_entry()
-            except CannotConnect:
-                return self.async_abort(reason="cannot_connect")
-
-        return self.async_show_form(
-            step_id="discovery_confirm", description_placeholders={"name": self._name}
-        )
-
-
-class CannotConnect(exceptions.HomeAssistantError):
-    """Error to indicate we cannot connect."""

@@ -1,6 +1,5 @@
 {
     "config_flow": true,
-    "zeroconf": [{"type": "_http._tcp.local.", "name": "mopidy*"}],
     "codeowners": ["@bushvin"],
     "domain": "mopidy",
     "documentation": "https://github.com/bushvin/hass-integrations#mopidy",
