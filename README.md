@@ -11,6 +11,15 @@ Please look at the [Mopidy installation & configuration instructions](https://do
 2. Copy the `mopidy` directory to `<config dir>/custom_components/`
 
 ### Setup
+#### GUI
+1. Go to the *Integrations* page and click **+ ADD INTEGRATION**
+1. Select *Mopidy* in the list of integrations
+1. Fill out the requested information. Make sure to enter your correct FQDN or IP address. Using `localhost`, `127.0.0.1`, `::1` or any other loopback address will disable Mopidy-Local artwork.
+1. Click Submit.
+
+Repeat the above steps to add more Mopidy Server instances.
+
+#### Manual Configuration
 1. add a media player to your home assistant configuration (`<config dir>/configuration.yaml`):
 
 ```yaml

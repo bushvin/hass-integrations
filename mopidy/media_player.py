@@ -1,4 +1,5 @@
 """Support to interact with a MopidyMusic Server."""
+import re
 import logging
 from mopidyapi import MopidyAPI
 from requests.exceptions import ConnectionError as reConnectionError
@@ -54,6 +55,7 @@ from homeassistant.components.media_player.const import (
 )
 from homeassistant.const import (
     CONF_HOST,
+    CONF_ID,
     CONF_PORT,
     CONF_NAME,
     STATE_IDLE,
@@ -64,12 +66,7 @@ from homeassistant.const import (
     STATE_UNKNOWN,
 )
 
-from .const import (
-    DOMAIN,
-    ICON,
-    DEFAULT_NAME,
-    DEFAULT_PORT
-)
+from .const import DOMAIN, ICON, DEFAULT_NAME, DEFAULT_PORT
 
 SUPPORT_MOPIDY = (
     SUPPORT_BROWSE_MEDIA
@@ -116,6 +113,19 @@ class MissingMediaInformation(BrowseError):
     """Missing media required information."""
 
 
+async def async_setup_entry(
+    hass: HomeAssistant, config_entry: ConfigEntry, async_add_entities
+):
+    """Set up the Mopidy platform."""
+    uid = config_entry.data[CONF_ID]
+    name = config_entry.data[CONF_NAME]
+    host = config_entry.data[CONF_HOST]
+    port = config_entry.data[CONF_PORT]
+
+    entity = MopidyMediaPlayerEntity(host, port, name, uid)
+    async_add_entities([entity])
+
+
 async def async_setup_platform(
     hass: HomeAssistant, config: ConfigEntry, async_add_entities, discover_info=None
 ):
@@ -131,11 +141,15 @@ async def async_setup_platform(
 class MopidyMediaPlayerEntity(MediaPlayerEntity):
     """Representation of the Mopidy server."""
 
-    def __init__(self, hostname, port, name):
+    def __init__(self, hostname, port, name, uuid=None):
         """Initialize the Mopidy device."""
         self.hostname = hostname
         self.port = port
         self.device_name = name
+        if uuid is None:
+            self.uuid = re.sub("[._-]+", "_", hostname)
+        else:
+            self.uuid = uuid
 
         self.server_version = None
         self.player_currenttrack = None
@@ -223,6 +237,11 @@ class MopidyMediaPlayerEntity(MediaPlayerEntity):
             self._repeat_mode = REPEAT_MODE_ALL
         else:
             self._repeat_mode = REPEAT_MODE_OFF
+
+    @property
+    def unique_id(self):
+        """Return the unique id for the entity."""
+        return self.uuid
 
     @property
     def name(self) -> str:
