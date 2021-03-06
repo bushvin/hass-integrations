@@ -147,7 +147,11 @@ class MopidyMediaPlayerEntity(MediaPlayerEntity):
         self.port = port
         self.device_name = name
         if uuid is None:
-            self.uuid = re.sub("[._-]+", "_", hostname)
+            self.uuid = re.sub(
+                "[._-]+",
+                "_",
+                f"%(host)_%(port)" % {"host": self.hostname, "port": self.port},
+            )
         else:
             self.uuid = uuid
 
