@@ -20,9 +20,10 @@ _LOGGER = logging.getLogger(__name__)
 
 def _validate_input(host, port):
     """Validate the user input."""
-    client = MopidyAPI( host=host, port=port, use_websocket=False )
+    client = MopidyAPI(host=host, port=port, use_websocket=False)
     t = client.rpc_call("core.get_version")
     return True
+
 
 class MopidyConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     """Handle config flow for Mopidy Servers."""
@@ -66,10 +67,16 @@ class MopidyConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             self._host = user_input[CONF_HOST]
             self._port = user_input[CONF_PORT]
             self._name = user_input[CONF_NAME]
-            self._uuid = re.sub(r"[._-]+", "_", self._host)
+            self._uuid = re.sub(
+                r"[._-]+",
+                "_",
+                f"%(host)s_%(port)s" % {"host": self._host, "port": self._port},
+            )
 
             try:
-                await self.hass.async_add_executor_job(_validate_input, self._host, self._port)
+                await self.hass.async_add_executor_job(
+                    _validate_input, self._host, self._port
+                )
             except reConnectionError as error:
                 errors["base"] = "cannot_connect"
             except Exception:
