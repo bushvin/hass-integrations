@@ -67,11 +67,7 @@ class MopidyConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             self._host = user_input[CONF_HOST]
             self._port = user_input[CONF_PORT]
             self._name = user_input[CONF_NAME]
-            self._uuid = re.sub(
-                r"[._-]+",
-                "_",
-                f"%(host)s_%(port)s" % {"host": self._host, "port": self._port},
-            )
+            self._uuid = re.sub(r"[._-]+", "_", self._host)+"_"+str(self._port)
 
             try:
                 await self.hass.async_add_executor_job(
