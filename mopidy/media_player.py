@@ -151,6 +151,9 @@ class MopidyMediaPlayerEntity(MediaPlayerEntity):
         else:
             self.uuid = uuid
 
+        self._reset_variables()
+
+    def _reset_variables(self):
         self.server_version = None
         self.player_currenttrack = None
         self.player_streamttile = None
@@ -175,7 +178,13 @@ class MopidyMediaPlayerEntity(MediaPlayerEntity):
     def _fetch_status(self):
         """Fetch status from Mopidy."""
         _LOGGER.debug("Fetching Mopidy Server status for %s", self.device_name)
-        self.player_currenttrack = self.client.playback.get_current_track()
+        try:
+            self.player_currenttrack = self.client.playback.get_current_track()
+        except:
+            self._reset_variables()
+            self._state = STATE_UNAVAILABLE
+            return
+
         self.player_streamttile = self.client.playback.get_stream_title()
 
         if hasattr(self.player_currenttrack, "uri"):
@@ -562,7 +571,7 @@ class MopidyMediaPlayerEntity(MediaPlayerEntity):
 
     def update(self):
         """Get the latest data and update the state."""
-        if self._available is None:
+        if not self._available:
             self._connect()
 
         if self._available:
