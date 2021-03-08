@@ -11,6 +11,9 @@ Please look at the [Mopidy installation & configuration instructions](https://do
 2. Copy the `mopidy` directory to `<config dir>/custom_components/`
 
 ### Setup
+#### zeroconf
+Your Mopidy Servers can be detected and addedto Home Assitant through zeroconf.
+
 #### GUI
 1. Go to the *Integrations* page and click **+ ADD INTEGRATION**
 1. Select *Mopidy* in the list of integrations

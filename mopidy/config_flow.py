@@ -94,3 +94,51 @@ class MopidyConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             ),
             errors=errors,
         )
+
+    async def async_step_zeroconf(self, discovery_info: DiscoveryInfoType):
+        """Handle zeroconf discovery."""
+        try:
+            await self.hass.async_add_executor_job(
+                _validate_input, discovery_info["hostname"], discovery_info["port"]
+            )
+        except reConnectionError as error:
+            return self.async_abort(reason="not_mopidy")
+        except Exception:
+            return self.async_abort(reason="not_mopidy")
+
+        _LOGGER.info(
+            "Discovered a Mopidy Server @ %s (%s) on port %d",
+            discovery_info["hostname"],
+            discovery_info["host"],
+            discovery_info["port"],
+        )
+
+        self._host = discovery_info["hostname"]
+        self._port = int(discovery_info["port"])
+        self._name = discovery_info["properties"].get("name", self._host)
+        self._uuid = re.sub(r"[._-]+", "_", self._host) + "_" + str(self._port)
+
+        await self._set_uid_and_abort()
+
+        return await self.async_step_discovery_confirm()
+
+    async def async_step_discovery_confirm(self, user_input=None):
+        """Handle user-confirmation of discovered node."""
+        if user_input is not None:
+            try:
+                await self.hass.async_add_executor_job(
+                    _validate_input, self._host, self._port
+                )
+
+                return self._async_get_entry()
+            except reConnectionError:
+                return self.async_abort(reason="cannot_connect")
+
+        return self.async_show_form(
+            step_id="discovery_confirm",
+            description_placeholders={
+                "name": self._name,
+                "host": self._host,
+                "port": self._port,
+            },
+        )
