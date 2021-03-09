@@ -1,0 +1,27 @@
+{
+    "config": {
+        "abort": {
+            "cannot_connect": "Kan geen verbinding maken met ontdekte Mopidy Server",
+            "not_mopidy": "Apparaat is geen Mopidy Server"
+        },
+        "step": {
+            "discovery_confirm": {
+                "description": "Wilt u Mopidy Server {name} (`{host}:{port}`) toevoegen aan Home Assistant?",
+                "title": "Mopidy Server Ontdekt"
+            },
+            "user": {
+                "title": "Mopidy Server toevoegen",
+                "description": "Configureer uw Mopidy Server apparaat. Zorg ervoor het correcte FQDN of IP adres in te geven. Gebruik de volgende adressen niet: 'localhost', '127.0.0.1', of '::1'",
+                "data": {
+                    "host": "Hostname",
+                    "name": "Naam",
+                    "port": "Poort"
+                }
+            }
+        },
+        "error": {
+            "cannot_connect": "Kan geen verbinding maken met Mopidy host",
+            "unknown": "Ongekende fout"
+        }
+    }
+}

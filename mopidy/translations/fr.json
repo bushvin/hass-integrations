@@ -1,0 +1,27 @@
+{
+    "config": {
+        "abort": {
+            "cannot_connect": "Impossible de se connecter au Serveur Mopidy d\u00e9couvert",
+            "not_mopidy": "Ceci n'est pas un Serveur Mopidy"
+        },
+        "step": {
+            "discovery_confirm": {
+                "description": "Voulez-vous ajouter le Serveur Mopidy {name} (`{host}:{port}`) \u00e0 Home Assistant?",
+                "title": "Servuer Mopidy d\u00e9couvert"
+            },
+            "user": {
+                "title": "Ajouter Serveur Mopidy",
+                "description": "Configurez votre Serveur Mopidy. Specifiez un FQDN ou adresse IP correcte. N'utilisez pas 'localhost', '127.0.0.1', ou '::1'.",
+                "data": {
+                    "host": "H\u00f4te",
+                    "name": "Nom",
+                    "port": "Port"
+                }
+            }
+        },
+        "error": {
+            "cannot_connect": "\u00c9chec de connexion vers l'H\u00f4te Mopidy",
+            "unknown": "Erreur inconnu"
+        }
+    }
+}
