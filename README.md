@@ -51,6 +51,25 @@ When using the `play_media` service, the Mopidy Media Player platform will attem
 Currently supported for:
 - Youtube
 
+#### Service mopidy.restore
+Restore a previously taken snapshot of one or more Mopidy Servers
+
+The playing queue is snapshotted
+
+|Service data attribute|Optional|Description|
+|-|-|-|
+|`entity_id`|no|String or list of `entiti_id`s that should have their snapshot restored.|
+
+#### Service mopidy.snapshot
+Take a snapshot of what is currently playing on one or more Mopidy Servers. This service, and the following one, are useful if you want to play a doorbell or notification sound and resume playback afterwards.
+
+**Warning:** *This service is controlled by the platform, this is not a built-in function of Mopidy Server! Restarting Home Assistant will cause the snapshot to lost.*
+
+|Service data attribute|Optional|Description|
+|-|-|-|
+|`entity_id`|no|String or list of `entiti_id`s ito take a snapshot of.|
+
+
 ### Notes
 Due to the nature of the way Mopidy provides thumbnails of the media,
 proxying them through Home Assistant is very resource intensive, 
