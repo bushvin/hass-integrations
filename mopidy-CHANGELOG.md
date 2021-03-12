@@ -12,7 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 - fixed typo in english translation
 
-## [1.4.0] - 2020-03-08
+## [1.2.0] - 2020-03-08
 ### Added
 - Support for zeroconf discovery
 

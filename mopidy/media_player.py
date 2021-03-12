@@ -14,6 +14,7 @@ from homeassistant.components.media_player import (
 )
 from homeassistant.components.media_player.errors import BrowseError
 import homeassistant.util.dt as dt_util
+from homeassistant.helpers import config_validation as cv, entity_platform, service
 import homeassistant.helpers.config_validation as cv
 from homeassistant.components.media_player.const import (
     MEDIA_CLASS_ALBUM,
@@ -125,6 +126,16 @@ async def async_setup_entry(
     entity = MopidyMediaPlayerEntity(host, port, name, uid)
     async_add_entities([entity])
 
+    # component = hass.data[DOMAIN] = EntityComponent(
+    #    logging.getLogger(__name__), DOMAIN, hass, SCAN_INTERVAL
+    # )
+
+    platform = entity_platform.current_platform.get()
+
+    platform.async_register_entity_service("snapshot", {}, "snapshot")
+
+    platform.async_register_entity_service("restore", {}, "restore")
+
 
 async def async_setup_platform(
     hass: HomeAssistant, config: ConfigEntry, async_add_entities, discover_info=None
@@ -169,11 +180,15 @@ class MopidyMediaPlayerEntity(MediaPlayerEntity):
         self._repeat_mode = None
         self._playlists = []
         self._currentplaylist = None
+        self._tracklist_tracks = None
+        self._tracklist_index = None
 
         self.client = None
         self._available = None
 
         self._has_support_volume = None
+
+        self._snapshot = None
 
     def _fetch_status(self):
         """Fetch status from Mopidy."""
@@ -246,6 +261,44 @@ class MopidyMediaPlayerEntity(MediaPlayerEntity):
             self._repeat_mode = REPEAT_MODE_ALL
         else:
             self._repeat_mode = REPEAT_MODE_OFF
+
+        self._tracklist_tracks = [t.uri for t in self.client.tracklist.get_tracks()]
+        self._tracklist_index = self.client.tracklist.index()
+
+    def snapshot(self):
+        """Make a snapshot of Mopidy Server"""
+
+        self._snapshot = {
+            "tracklist": {
+                "items": self._tracklist_tracks,
+                "index": self._tracklist_index,
+            },
+            "currenttrack": self.player_currenttrack,
+            "mediaposition": self._media_position,
+            "volume": self._volume,
+            "muted": self._muted,
+            "repeat_mode": self._repeat_mode,
+            "shuffled": self._shuffled,
+        }
+        _LOGGER.debug(self._snapshot)
+
+    def restore(self):
+        """Restore Mopidy Server snapshot"""
+        if self._snapshot is None:
+            return
+        self.media_stop()
+        self.clear_playlist()
+        self.client.tracklist.add(uris=self._snapshot["tracklist"]["items"])
+        if self._snapshot["tracklist"]["index"] > 0:
+            self.client.playback.play(tlid=self._snapshot["tracklist"]["index"])
+        if self._snapshot["mediaposition"] > 0:
+            self.client.playback.seek(self._snapshot["mediaposition"])
+
+        self.set_volume_level(self._snapshot["volume"])
+        self.mute_volume(self._snapshot["muted"])
+        self.set_repeat(self._snapshot["repeat_mode"])
+        self.set_shuffle(self._snapshot["shuffled"])
+        self._snapshot = None
 
     @property
     def unique_id(self):
