@@ -270,7 +270,6 @@ class MopidyMediaPlayerEntity(MediaPlayerEntity):
 
     def snapshot(self):
         """Make a snapshot of Mopidy Server"""
-
         self._snapshot = {
             "tracklist": {
                 "items": self._tracklist_tracks,
@@ -283,7 +282,6 @@ class MopidyMediaPlayerEntity(MediaPlayerEntity):
             "repeat_mode": self._repeat_mode,
             "shuffled": self._shuffled,
         }
-        _LOGGER.debug(self._snapshot)
 
     def restore(self):
         """Restore Mopidy Server snapshot"""
