@@ -67,7 +67,14 @@ from homeassistant.const import (
     STATE_UNKNOWN,
 )
 
-from .const import DOMAIN, ICON, DEFAULT_NAME, DEFAULT_PORT
+from .const import (
+    DOMAIN,
+    ICON,
+    DEFAULT_NAME,
+    DEFAULT_PORT,
+    SERVICE_SNAPSHOT,
+    SERVICE_RESTORE,
+)
 
 SUPPORT_MOPIDY = (
     SUPPORT_BROWSE_MEDIA
@@ -126,15 +133,11 @@ async def async_setup_entry(
     entity = MopidyMediaPlayerEntity(host, port, name, uid)
     async_add_entities([entity])
 
-    # component = hass.data[DOMAIN] = EntityComponent(
-    #    logging.getLogger(__name__), DOMAIN, hass, SCAN_INTERVAL
-    # )
-
     platform = entity_platform.current_platform.get()
 
-    platform.async_register_entity_service("snapshot", {}, "snapshot")
+    platform.async_register_entity_service(SERVICE_SNAPSHOT, {}, "snapshot")
 
-    platform.async_register_entity_service("restore", {}, "restore")
+    platform.async_register_entity_service(SERVICE_RESTORE, {}, "restore")
 
 
 async def async_setup_platform(
