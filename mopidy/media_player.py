@@ -271,11 +271,8 @@ class MopidyMediaPlayerEntity(MediaPlayerEntity):
     def snapshot(self):
         """Make a snapshot of Mopidy Server"""
         self._snapshot = {
-            "tracklist": {
-                "items": self._tracklist_tracks,
-                "index": self._tracklist_index,
-            },
-            "currenttrack": self.player_currenttrack,
+            "tracklist": self._tracklist_tracks,
+            "tracklist_index": self._tracklist_index,
             "mediaposition": self._media_position,
             "volume": self._volume,
             "muted": self._muted,
@@ -289,16 +286,24 @@ class MopidyMediaPlayerEntity(MediaPlayerEntity):
             return
         self.media_stop()
         self.clear_playlist()
-        self.client.tracklist.add(uris=self._snapshot["tracklist"]["items"])
-        if self._snapshot["tracklist"]["index"] > 0:
-            self.client.playback.play(tlid=self._snapshot["tracklist"]["index"])
+        self.client.tracklist.add(uris=self._snapshot["tracklist"])
+        self.client.playback.play(
+            tlid=getattr(
+                self.client.tracklist.get_tl_tracks()[
+                    self._snapshot["tracklist_index"]
+                ],
+                "tlid",
+            )
+        )
+
         if self._snapshot["mediaposition"] > 0:
-            self.client.playback.seek(self._snapshot["mediaposition"])
+            self.media_seek(self._snapshot["mediaposition"])
 
         self.set_volume_level(self._snapshot["volume"])
         self.mute_volume(self._snapshot["muted"])
         self.set_repeat(self._snapshot["repeat_mode"])
         self.set_shuffle(self._snapshot["shuffled"])
+
         self._snapshot = None
 
     @property
