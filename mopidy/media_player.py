@@ -74,6 +74,8 @@ from .const import (
     DEFAULT_PORT,
     SERVICE_SNAPSHOT,
     SERVICE_RESTORE,
+    CACHE_TITLES,
+    CACHE_ART,
 )
 
 SUPPORT_MOPIDY = (
@@ -104,6 +106,17 @@ PLAYABLE_MEDIA_TYPES = [
     MEDIA_TYPE_TRACK,
 ]
 
+EXPANDABLE_MEDIA_TYPES = [ 
+    MEDIA_CLASS_ALBUM,
+    MEDIA_CLASS_ARTIST,
+    MEDIA_CLASS_COMPOSER,
+    MEDIA_CLASS_DIRECTORY,
+    MEDIA_CLASS_GENRE,
+    MEDIA_CLASS_MUSIC,
+    MEDIA_CLASS_PLAYLIST,
+    MEDIA_CLASS_PODCAST,
+]
+
 _LOGGER = logging.getLogger(__name__)
 
 PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend(
@@ -114,7 +127,6 @@ PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend(
     }
 )
 
-CACHE_ROSETTA = {}
 
 
 class MissingMediaInformation(BrowseError):
@@ -607,7 +619,8 @@ class MopidyMediaPlayerEntity(MediaPlayerEntity):
     def _connect(self):
         try:
             self.client = MopidyAPI(
-                host=self.hostname, port=self.port, use_websocket=False
+                host=self.hostname, port=self.port, use_websocket=False,
+                logger = logging.getLogger(__name__ + '.client')
             )
             self.server_version = self.client.rpc_call("core.get_version")
             _LOGGER.debug(
@@ -659,10 +672,10 @@ class MopidyMediaPlayerEntity(MediaPlayerEntity):
 
         url = f"{url}?t=x"
         return url
-
+    
     def _media_library_payload(self, payload):
         """Create response payload to describe contents of a specific library."""
-        source = None
+        _image_uris = []
 
         try:
             payload["media_content_type"]
@@ -670,273 +683,137 @@ class MopidyMediaPlayerEntity(MediaPlayerEntity):
         except KeyError as err:
             _LOGGER.error("Missing type or uri for media item payload: %s", payload)
             raise MissingMediaInformation from err
+        
+        library_info, mopidy_info = self.get_media_info(payload)
+        if mopidy_info["art_uri"] != "library":
+            if mopidy_info["art_uri"] not in CACHE_ART:
+                _image_uris.append(mopidy_info["art_uri"])
 
-        library_info = dict(
-            media_class=MEDIA_CLASS_DIRECTORY,
-            media_content_id="library",
-            media_content_type="library",
-            title="Media Library",
-            can_play=False,
-            can_expand=True,
-            children=[],
-        )
-        library_info.update(payload)
+        library_children = {}
+        for el in self.client.library.browse(mopidy_info["browsepath"]):
+            library_children[getattr(el, "uri")] = dict(zip(('library_info','mopidy_info'), self.get_media_info(
+                {
+                    "media_content_type": getattr(el, "type", "directory"),
+                    "media_content_id": getattr(el, "uri"),
+                    "name": getattr(el, "name", "unknown")
+                }
+            )))
+            if library_children[getattr(el, "uri")]["mopidy_info"] is not None and library_children[getattr(el, "uri")]["mopidy_info"]["art_uri"] not in CACHE_ART:
+                _image_uris.append(library_children[getattr(el, "uri")]["mopidy_info"]["art_uri"])
 
-        if payload["media_content_id"] == "library":
-            library_items = self.client.library.browse(None)
-            library_info["title"] = "Media Library"
-        else:
-            source = payload["media_content_id"].partition(":")[0]
-            library_items = self.client.library.browse(payload["media_content_id"])
-            extra_info = fetch_media_info(
-                payload["media_content_type"], payload["media_content_id"]
-            )
-            library_info.update(extra_info)
-            image = self.client.library.get_images([payload["media_content_id"]])
-            if (
-                payload["media_content_id"] in image
-                and len(image[payload["media_content_id"]]) > 0
-            ):
-                library_info["thumbnail"] = self._media_item_image_url(
-                    source, image[payload["media_content_id"]][0].uri
-                )
-
-        children_uri = []
-        for item in library_items:
-            library_info["children"].append(
-                self._media_item_payload(
-                    {"name": item.name, "type": item.type, "uri": item.uri}
-                )
-            )
-            children_uri.append(item.uri)
-
-        if source == "spotify":
+        if mopidy_info["source"] == "spotify":
             # Spotify thumbnail lookup is throttled
             s = 10
         else:
             s = 1000
         uri_set = [
-            children_uri[r * s : (r + 1) * s]
-            for r in range((len(children_uri) + s - 1) // s)
+            _image_uris[r * s : (r + 1) * s]
+            for r in range((len(_image_uris) + s - 1) // s)
         ]
 
-        images = dict()
         for s in uri_set:
-            images.update(self.client.library.get_images(s))
+            if len(s) == 0:
+                continue
+            i = self.client.library.get_images(s)
+            for e in i:
+                if len(i[e]) > 0:
+                    CACHE_ART[e] = self._media_item_image_url(
+                            mopidy_info["source"],
+                            i[e][0].uri
+                            )
+                else:
+                    CACHE_ART[e] = None
 
-        if len(images.keys()) > 0:
-            for item in library_info["children"]:
-                if (
-                    item.media_content_id in images
-                    and len(images[item.media_content_id]) > 0
-                ):
-                    item.thumbnail = self._media_item_image_url(
-                        source, images[item.media_content_id][0].uri
-                    )
+        if mopidy_info["art_uri"] in CACHE_ART and CACHE_ART[mopidy_info["art_uri"]] is not None:
+            library_info["thumbnail"] = CACHE_ART[mopidy_info["art_uri"]]
 
-        library_info["can_play"] = (
-            library_info["media_content_type"] in PLAYABLE_MEDIA_TYPES
-        )
+        for i in library_children:
+            if library_children[i]["mopidy_info"] is not None and library_children[i]["mopidy_info"]["art_uri"] in CACHE_ART and CACHE_ART[library_children[i]["mopidy_info"]["art_uri"]] is not None:
+                library_children[i]["library_info"]["thumbnail"] = CACHE_ART[library_children[i]["mopidy_info"]["art_uri"]]
 
-        if payload["media_content_id"] in CACHE_ROSETTA:
-            library_info["title"] = CACHE_ROSETTA[payload["media_content_id"]]
-
+        library_info["children"] = [ BrowseMedia(**library_children[c]["library_info"]) for c in library_children if library_children[c]["library_info"] is not None]
         r = BrowseMedia(**library_info)
-        try:
-            r.children_media_class = extra_info["children_media_class"]
-        except:
-            r.children_media_class = MEDIA_CLASS_DIRECTORY
         return r
 
-    def _media_item_payload(self, item):
-        try:
-            media_type = item["type"]
-            media_id = item["uri"]
-        except KeyError as err:
-            _LOGGER.error("Missing type or uri for media item: %s", item)
-            raise MissingMediaInformation from err
+    def get_media_info(self, info):
+        """Build Library object"""
+        
+        disabled_uris = [
+                "local:directory?type=track"
+        ]
+        if info["media_content_id"] in CACHE_TITLES:
+            info["name"] = CACHE_TITLES[info["media_content_id"]]
 
-        media_class = MEDIA_CLASS_DIRECTORY
-        can_expand = media_type not in [MEDIA_TYPE_TRACK]
-        can_play = media_type in PLAYABLE_MEDIA_TYPES
+        library_info = {
+            "children": [],
+            "media_class": info["media_content_type"],
+            "media_content_id": info["media_content_id"],
+            "media_content_type": info["media_content_type"],
+            "title": info.get("name", "Unknown"),
+            "can_play": info.get("media_content_type", MEDIA_CLASS_DIRECTORY) in PLAYABLE_MEDIA_TYPES,
+            "can_expand": info.get("media_content_type", MEDIA_CLASS_DIRECTORY) in EXPANDABLE_MEDIA_TYPES,
+        }
+        mopidy_info = {
+            "browsepath": info.get("media_content_id"),
+            "art_uri": info.get("media_content_id"),
+            "source": info.get("media_content_id").partition(":")[0]
+            }
 
-        payload = dict(
-            media_class=media_class,
-            media_content_id=media_id,
-            media_content_type=media_type,
-            can_play=can_play,
-            can_expand=can_expand,
-            title=item.get("name"),
-        )
-        CACHE_ROSETTA[media_id] = payload["title"]
-        extra_info = fetch_media_info(media_type, media_id)
-        payload.update(extra_info)
-        return BrowseMedia(**payload)
+        source = info.get("media_content_id").partition(":")[0]
+        uri = info.get("media_content_id").partition(":")[2]
 
+        if info["media_content_id"] in disabled_uris:
+            return None, None
 
-def fetch_media_info(
-    media_type=None,
-    media_uri=None,
-    defaults={},
-):
-    """Fetch addional media information which is not available through the mopidy API"""
+        if info["media_content_id"] == "library":
+            library_info.update(
+                    {
+                        "title": "Media Library",
+                        "can_expand": True,
+                    }
+            )
+            mopidy_info["browsepath"] = None
 
-    res = dict()
-    res["media_class"] = defaults.get("media_class")
-    res["children_media_class"] = defaults.get("children_media_class")
+        if source == "local":
+            media_info = {}
+            for el in uri.partition("?")[2].split("&"):
+                if el != "":
+                    media_info[el.partition("=")[0]] = el.partition("=")[2]
+            if media_info.get("type") == "album":
+                library_info["media_class"] = MEDIA_CLASS_ALBUM
+            elif media_info.get("type") == "artist":
+                library_info["media_class"] = MEDIA_CLASS_ARTIST
+            elif media_info.get("type") == "genre":
+                library_info["media_class"] = MEDIA_CLASS_GENRE
+            elif media_info.get("type") == "track":
+                library_info["media_class"] = MEDIA_CLASS_TRACK
 
-    if media_type is None or media_uri is None:
-        return res
+            if media_info.get("album") is not None:
+                mopidy_info["art_uri"] = media_info["album"]
+                library_info["can_play"] = True
+                library_info["media_class"] = MEDIA_CLASS_ALBUM
+            elif media_info.get("genre") is not None:
+                library_info["media_class"] = MEDIA_CLASS_GENRE
+            
+            if media_info.get("role") is not None and media_info["role"] == "composer" or media_info.get("composer") is not None:
+                library_info["media_class"] = MEDIA_CLASS_COMPOSER
 
-    source = media_uri.partition(":")[0]
-    uri = media_uri.partition(":")[2]
+        elif source == "spotify":
+            if "spotify:top:albums" in info["media_content_id"] or "spotify:your:albums" in info["media_content_id"]:
+                library_info["media_class"] = MEDIA_CLASS_ALBUM
+            elif "spotify:top:artists" in info["media_content_id"]:
+                library_info["media_class"] = MEDIA_CLASS_ARTIST
+            elif "spotify:top:tracks" in info["media_content_id"] or "spotify:your:tracks" in info["media_content_id"]:
+                library_info["media_class"] = MEDIA_CLASS_TRACK
+            elif "spotify:playlists" in info["media_content_id"]:
+                library_info["media_class"] = MEDIA_CLASS_PLAYLIST
 
-    if False:
-        _LOGGER.debug(f"media_type: {media_type}")
-        _LOGGER.debug(f"media_uri: {media_uri}")
-        _LOGGER.debug(f"source: {source}")
-        _LOGGER.debug(f"uri: {uri}")
+        elif "podcast+" in source:
+          library_info["media_class"]  = MEDIA_CLASS_PODCAST
 
-    if media_type == "directory":
-        res["media_class"] = MEDIA_CLASS_DIRECTORY
-        res["children_media_class"] = MEDIA_CLASS_DIRECTORY
+        elif source == "tunein":
+            media_info = library_info['media_content_id'].split(":")
+            library_info["media_class"] = MEDIA_CLASS_DIRECTORY
 
-    elif media_type == "album":
-        res["media_class"] = MEDIA_CLASS_ALBUM
-        res["children_media_class"] = MEDIA_CLASS_TRACK
-
-    elif media_type == "artist":
-        res["media_class"] = MEDIA_CLASS_ARTIST
-        res["children_media_class"] = MEDIA_CLASS_TRACK
-
-    elif media_type == "track":
-        res["media_class"] = MEDIA_CLASS_TRACK
-        res["children_media_class"] = MEDIA_CLASS_TRACK
-
-    elif media_type == "playlist":
-        res["media_class"] = MEDIA_CLASS_PLAYLIST
-        res["children_media_class"] = MEDIA_CLASS_TRACK
-
-    if source == "local":
-        media_info = {}
-        for el in uri.partition("?")[2].split("&"):
-            if el != "":
-                media_info[el.partition("=")[0]] = el.partition("=")[2]
-
-        if media_type == "directory" and media_info.get("type") == "album":
-            res["title"] = "Albums"
-            res["media_class"] = MEDIA_CLASS_ALBUM
-            res["children_media_class"] = MEDIA_CLASS_ALBUM
-
-        elif media_type == "directory" and media_info.get("type") == "artist":
-            res["media_class"] = MEDIA_CLASS_ARTIST
-            res["children_media_class"] = MEDIA_CLASS_ARTIST
-            if media_info.get("role") == "composer":
-                res["title"] = "Composer"
-                res["media_class"] = MEDIA_CLASS_COMPOSER
-                res["children_media_class"] = MEDIA_CLASS_COMPOSER
-            elif media_info.get("role") == "performer":
-                res["title"] = "Performer"
-            else:
-                res["title"] = "Artists"
-
-        elif (
-            media_type == "directory"
-            and media_info.get("composer") is not None
-            and media_info.get("album") is not None
-        ):
-            res["media_class"] = MEDIA_CLASS_ALBUM
-            res["children_media_class"] = MEDIA_CLASS_TRACK
-
-        elif media_type == "directory" and media_info.get("composer") is not None:
-            res["media_class"] = MEDIA_CLASS_COMPOSER
-            res["children_media_class"] = MEDIA_CLASS_ALBUM
-
-        elif (
-            media_type == "directory"
-            and media_info.get("genre") is not None
-            and media_info.get("album") is not None
-        ):
-            res["media_class"] = MEDIA_CLASS_ALBUM
-            res["children_media_class"] = MEDIA_CLASS_TRACK
-
-        elif media_type == "directory" and media_info.get("genre") is not None:
-            res["media_class"] = MEDIA_CLASS_GENRE
-            res["children_media_class"] = MEDIA_CLASS_ALBUM
-
-        elif media_type == "directory" and media_info.get("type") == "genre":
-            res["title"] = "Genres"
-            res["media_class"] = MEDIA_CLASS_GENRE
-            res["children_media_class"] = MEDIA_CLASS_GENRE
-
-        elif (
-            media_type == "directory"
-            and media_info.get("type") == "track"
-            and media_info.get("album") is not None
-        ):
-            res["media_class"] = MEDIA_CLASS_ALBUM
-            res["children_media_class"] = MEDIA_CLASS_TRACK
-
-        elif media_type == "directory" and media_info.get("type") == "track":
-            res["media_class"] = MEDIA_CLASS_TRACK
-            res["children_media_class"] = MEDIA_CLASS_TRACK
-
-        elif media_type == "artist":
-            res["media_class"] = MEDIA_CLASS_ARTIST
-            res["children_media_class"] = MEDIA_CLASS_ALBUM
-
-    elif source == "spotify":
-        if media_type == "directory" and uri == "top:tracks:countries":
-            res["media_class"] = MEDIA_CLASS_DIRECTORY
-            res["children_media_class"] = MEDIA_CLASS_DIRECTORY
-
-        elif media_type == "directory" and "top:tracks:" in uri:
-            res["media_class"] = MEDIA_CLASS_DIRECTORY
-            res["children_media_class"] = MEDIA_CLASS_TRACK
-
-        elif media_type == "directory" and uri in [
-            "top:albums",
-            "top:albums:countries",
-        ]:
-            res["media_class"] = MEDIA_CLASS_DIRECTORY
-            res["children_media_class"] = MEDIA_CLASS_ALBUM
-
-        elif media_type == "directory" and "top:albums:" in uri:
-            res["media_class"] = MEDIA_CLASS_DIRECTORY
-            res["children_media_class"] = MEDIA_CLASS_ALBUM
-
-        elif media_type == "directory" and uri in [
-            "top:artists",
-            "top:artists:countries",
-        ]:
-            res["media_class"] = MEDIA_CLASS_ARTIST
-            res["children_media_class"] = MEDIA_CLASS_ARTIST
-
-        elif media_type == "directory" and "top:artists:" in uri:
-            res["media_class"] = MEDIA_CLASS_ARTIST
-            res["children_media_class"] = MEDIA_CLASS_ARTIST
-
-        elif media_type == "directory" and uri == "your:tracks":
-            res["media_class"] = MEDIA_CLASS_DIRECTORY
-            res["children_media_class"] = MEDIA_CLASS_TRACK
-
-        elif media_type == "directory" and uri == "your:albums":
-            res["media_class"] = MEDIA_CLASS_DIRECTORY
-            res["children_media_class"] = MEDIA_CLASS_ALBUM
-
-        elif media_type == "directory" and uri == "top":
-            res["title"] = "Top Lists"
-
-        elif media_type == "directory" and uri == "directory":
-            res["title"] = "Spotify"
-
-    elif source[:7] == "podcast":
-        if media_type == "album":
-            res["media_class"] = MEDIA_CLASS_DIRECTORY
-            res["children_media_class"] = MEDIA_CLASS_PODCAST
-
-        elif media_type == "track":
-            res["media_class"] = MEDIA_CLASS_PODCAST
-            res["children_media_class"] = MEDIA_CLASS_PODCAST
-
-    return res
+        CACHE_TITLES[info["media_content_id"]] = library_info["title"]
+        return library_info, mopidy_info

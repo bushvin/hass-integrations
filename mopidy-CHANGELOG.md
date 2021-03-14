@@ -5,6 +5,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+
+## [1.3.2] - 2021-03-14
+### Changed
+- refactored media library routines
+- provide home assistant logger to MopidyAPI
+
 ## [1.3.1] - 2021-03-13
 ### Changed
 - fixed issue with snapshot/restore track index
