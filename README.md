@@ -1,5 +1,5 @@
 # Home Assitant integrations
-Additional intagrations for [Home Assistant](https://www.home-assistant.io/)
+Additional integrations for [Home Assistant](https://www.home-assistant.io/)
 
 ## Mopidy
 This is a platform integration for [Mopidy Music Servers](https://mopidy.com/)
@@ -7,8 +7,15 @@ This is a platform integration for [Mopidy Music Servers](https://mopidy.com/)
 ### Installation
 Please look at the [Mopidy installation & configuration instructions](https://docs.mopidy.com/en/latest/installation/) to set up a Mopidy Server.
 
-1. Clone this repository
-2. Copy the `mopidy` directory to `<config dir>/custom_components/`
+1. Install HACS
+2. Go to any of the sections (integrations, frontend, automation).
+3. Click on the 3 dots in the top right corner.
+4. Select "Custom repositories"
+5. Add the URL to the repository.
+6. Select the correct category.
+7. Click the "ADD" button.
+8. Go to Home Assistaat settings -> Integrations and add Mopidy
+9. Restart HA
 
 ### Setup
 #### zeroconf
