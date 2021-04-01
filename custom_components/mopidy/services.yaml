@@ -2,28 +2,93 @@
 restore:
   name: Restore
   description: Restore a snapshot of the Mopidy Server.
-  fields:
-    entity_id:
-      name: Entity ID
-      description: Name(s) of entities that will be restored.
-      example: media_player.figrindan_local
-      required: true
-      selector:
-        entity:
-          integration: mopidy
-          domain: media_player
+  target:
+    entity:
+      integration: mopidy
+      domain: media_player
+  #fields:
+  #  entity_id:
+  #    name: Entity ID
+  #    description: Name(s) of entities that will be restored.
+  #    example: media_player.figrindan_local
+  #    required: true
+  #    selector:
+  #      entity:
+  #        integration: mopidy
+  #        domain: media_player
 
 snapshot:
   name: Snapshot
   description: Take a snapshot of the Mopidy Server
-  fields:
-    entity_id:
-      name: Entity ID
-      description: Name(s) of entities that will be snapshotted.
-      example: media_player.figrindan_local
-      required: true
-      selector:
-        entity:
-          integration: mopidy
-          domain: media_player
+  target:
+    entity:
+      integration: mopidy
+      domain: media_player
+  #fields:
+  #  entity_id:
+  #    name: Entity ID
+  #    description: Name(s) of entities that will be snapshotted.
+  #    example: media_player.figrindan_local
+  #    required: true
+  #    selector:
+  #      entity:
+  #        integration: mopidy
+  #        domain: media_player
 
+search:
+  name: Search
+  description:
+    Search the mopidy library for audio, and add it to the current queue.
+    The service does not start playing or clear the queue in any way, so this needs to be
+    handled by separate service calls (like `clear_playlist()` and `media_play()`)
+  target:
+    entity:
+      integration: mopidy
+      domain: media_player
+  fields:
+    exact:
+      name: Match exactly
+      description: Should the search be an exact match
+      example: "false"
+      default: false
+      selector:
+        boolean:
+    keyword:
+      name: Search keywords
+      description: The keywords to search for. Will search all track fields.
+      example: Everlong
+      selector:
+        text:
+    keyword_album:
+      name: Search album title
+      description: The keywords to search for in album titles.
+      example: From Mars to Sirius
+      selector:
+        text:
+    keyword_artist:
+      name: Search artist
+      description: The keywords to search for in artists.
+      example: Queens of the Stoneage
+      selector:
+        text:
+    keyword_genre:
+      name: Search genre
+      description: The keywords to search for in genres.
+      example: rock
+      selector:
+        text:
+    keyword_track_name:
+      name: Search track name
+      description: The keywords to search for in track names.
+      example: Lazarus
+      selector:
+        text:
+    source:
+      name: Limit search to source
+      description: 
+        URI sources to search. 
+        `local`, `spotify` and `tunein` are the only supported options. Make sure to have these extensions enabled on
+        your Mopidy Server! Separate multiple sources with a comma (,).
+      example: "local,spotify"
+      selector:
+        text:

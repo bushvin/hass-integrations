@@ -65,14 +65,15 @@ from homeassistant.const import (
 )
 
 from .const import (
-    DOMAIN,
-    ICON,
+    CACHE_ART,
+    CACHE_TITLES,
     DEFAULT_NAME,
     DEFAULT_PORT,
-    SERVICE_SNAPSHOT,
+    DOMAIN,
+    ICON,
     SERVICE_RESTORE,
-    CACHE_TITLES,
-    CACHE_ART,
+    SERVICE_SEARCH,
+    SERVICE_SNAPSHOT,
 )
 
 SUPPORT_MOPIDY = (
@@ -142,10 +143,22 @@ async def async_setup_entry(
     async_add_entities([entity])
 
     platform = entity_platform.current_platform.get()
-
-    platform.async_register_entity_service(SERVICE_SNAPSHOT, {}, "snapshot")
-
+    
     platform.async_register_entity_service(SERVICE_RESTORE, {}, "restore")
+    platform.async_register_entity_service(
+        SERVICE_SEARCH,
+        {
+            vol.Optional('exact'): cv.boolean,
+            vol.Optional('keyword'): cv.string,
+            vol.Optional('keyword_album'): cv.string,
+            vol.Optional('keyword_artist'): cv.string,
+            vol.Optional('keyword_genre'): cv.string,
+            vol.Optional('keyword_track_name'): cv.string,
+            vol.Optional('source'): cv.string,
+        },
+        "search"
+    )
+    platform.async_register_entity_service(SERVICE_SNAPSHOT, {}, "snapshot")
 
 
 async def async_setup_platform(
@@ -174,6 +187,7 @@ class MopidyMediaPlayerEntity(MediaPlayerEntity):
             self.uuid = uuid
 
         self.server_version = None
+        self.supported_uri_schemes = None
         self.player_currenttrack = None
         self.player_streamttile = None
         self.player_currenttrach_source = None
@@ -202,6 +216,7 @@ class MopidyMediaPlayerEntity(MediaPlayerEntity):
 
     def _reset_variables(self):
         self.server_version = None
+        self.supported_uri_schemes = None
         self.player_currenttrack = None
         self.player_streamttile = None
         self.player_currenttrach_source = None
@@ -237,6 +252,7 @@ class MopidyMediaPlayerEntity(MediaPlayerEntity):
             return
 
         self.player_streamttile = self.client.playback.get_stream_title()
+        self.supported_uri_schemes = self.client.rpc_call("core.get_uri_schemes")
 
         if hasattr(self.player_currenttrack, "uri"):
             self.player_currenttrach_source = self.player_currenttrack.uri.partition(
@@ -300,6 +316,49 @@ class MopidyMediaPlayerEntity(MediaPlayerEntity):
 
         self._tracklist_tracks = [t.uri for t in self.client.tracklist.get_tracks()]
         self._tracklist_index = self.client.tracklist.index()
+    
+    def search(self, **kwargs):
+        """Search the Mopidy Server media library."""
+        query = {}
+        uris = None
+        if isinstance(kwargs.get("keyword"),str):
+            query["any"] = [kwargs["keyword"].strip()]
+
+        if isinstance(kwargs.get("keyword_album"), str):
+            query["album"] = [kwargs["keyword_album"].strip()]
+
+        if isinstance(kwargs.get("keyword_artist"), str):
+            query["artist"] = [kwargs["keyword_artist"].strip()]
+
+        if isinstance(kwargs.get("keyword_genre"), str):
+            query["genre"] = [ kwargs["keyword_genre"].strip()]
+
+        if isinstance(kwargs.get("keyword_track_name"), str):
+            query["track_name"] = [kwargs["keyword_track_name"].strip()]
+
+        if len(query.keys()) == 0:
+            return
+        
+        if isinstance(kwargs.get("source"),str):
+            uris = []
+            for el in kwargs["source"].split(","):
+                if el.partition(":")[1] == '':
+                    el = el + ":"
+                if el.partition(":")[0] in self.supported_uri_schemes:
+                    uris.append(el)
+            if len(uris) == 0:
+                uris = None
+
+        search = self.client.library.search(query=query, uris=uris, exact=kwargs.get("exact",False))
+        track_uris = []
+        for result in search:
+            for track in getattr(result, "tracks", []):
+                track_uris.append(track.uri)
+
+        if len(track_uris) == 0:
+            return
+
+        self.client.tracklist.add(uris=track_uris)
 
     def snapshot(self):
         """Make a snapshot of Mopidy Server."""
