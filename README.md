@@ -72,10 +72,26 @@ The playing queue is snapshotted
 |-|-|-|
 |`entity_id`|no|String or list of `entiti_id`s that should have their snapshot restored.|
 
+#### Service mopidy.search
+Search media based on keywords and add them to the queue. This service does not replace the queue, nor does it start playing the queue. This can be achieved through the use of [media_player.clear_playlist](https://www.home-assistant.io/integrations/media_player/) and [media_player.media_play](https://www.home-assistant.io/integrations/media_player/)
+
+**Note:** One of the keyword fields **must** be used: `keyword`, `keyword_album`, `keyword_artist`, `keyword_genre` or `keyword_track_name`
+
+|Service data attribute|Optional|Description|Example|
+|-|-|-|-|
+|`entity_id`|no|String or list of `entiti_id`s ito take a snapshot of.| |
+|`exact`|yes|String. Should the search be an exact match|false|
+|`keyword`|yes|String. The keywords to search for. Will search all track fields.|Everlong|
+|`keyword_album`|yes|String. The keywords to search for in album titles.|From Mars to Sirius|
+|`keyword_artist`|yes|String. The keywords to search for in artists.|Queens of the Stoneage|
+|`keyword_genre`|yes|String. The keywords to search for in genres.|rock|
+|`keyword_track_name`|yes|String. The keywords to search for in track names.|Lazarus|
+|`source`|yes|String. URI sources to search. `local`, `spotify` and `tunein` are the only supported options. Make sure to have these extensions enabled on your Mopidy Server! Separate multiple sources with a comma (,).|local,spotify|
+
 #### Service mopidy.snapshot
 Take a snapshot of what is currently playing on one or more Mopidy Servers. This service, and the following one, are useful if you want to play a doorbell or notification sound and resume playback afterwards.
 
-**Warning:** *This service is controlled by the platform, this is not a built-in function of Mopidy Server! Restarting Home Assistant will cause the snapshot to lost.*
+**Warning:** *This service is controlled by the platform, this is not a built-in function of Mopidy Server! Restarting Home Assistant will cause the snapshot to be lost.*
 
 |Service data attribute|Optional|Description|
 |-|-|-|
