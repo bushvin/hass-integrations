@@ -1,4 +1,4 @@
-"Config flow for Mopidy." ""
+"""Config flow for Mopidy."""
 import re
 import logging
 from typing import Optional
@@ -7,13 +7,13 @@ from mopidyapi import MopidyAPI
 import voluptuous as vol
 from requests.exceptions import ConnectionError as reConnectionError
 
-from homeassistant import config_entries, exceptions
+from homeassistant import config_entries
 from homeassistant.const import CONF_HOST, CONF_ID, CONF_NAME, CONF_PORT
 from homeassistant.core import callback
 from homeassistant.helpers.typing import DiscoveryInfoType
 import homeassistant.helpers.config_validation as cv
 
-from .const import DOMAIN, DEFAULT_NAME, DEFAULT_PORT
+from .const import DOMAIN, DEFAULT_PORT
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -21,7 +21,7 @@ _LOGGER = logging.getLogger(__name__)
 def _validate_input(host, port):
     """Validate the user input."""
     client = MopidyAPI(host=host, port=port, use_websocket=False)
-    t = client.rpc_call("core.get_version")
+    client.rpc_call("core.get_version")
     return True
 
 
@@ -32,7 +32,7 @@ class MopidyConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     CONNECTION_CLASS = config_entries.CONN_CLASS_LOCAL_POLL
 
     def __init__(self):
-        """Initialize flow"""
+        """Initialize flow."""
         self._host: Optional[str] = None
         self._port: Optional[int] = None
         self._name: Optional[str] = None
@@ -74,6 +74,7 @@ class MopidyConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                     _validate_input, self._host, self._port
                 )
             except reConnectionError as error:
+                _LOGGER.error("Can't connect", error)
                 errors["base"] = "cannot_connect"
             except Exception:
                 _LOGGER.exception("Unexpected exception")
@@ -102,6 +103,7 @@ class MopidyConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 _validate_input, discovery_info["hostname"], discovery_info["port"]
             )
         except reConnectionError as error:
+            _LOGGER.warning("Not a mopidy server", error)
             return self.async_abort(reason="not_mopidy")
         except Exception:
             return self.async_abort(reason="not_mopidy")
