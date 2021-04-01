@@ -1,18 +1,4 @@
 ---
-snapshot:
-  name: Snapshot
-  description: Take a snapshot of the Mopidy Server
-  fields:
-    entity_id:
-      name: Entity ID
-      description: Name(s) of entities that will be snapshotted.
-      example: media_player.figrindan_local
-      required: true
-      selector:
-        entity:
-          integration: mopidy
-          domain: media_player
-
 restore:
   name: Restore
   description: Restore a snapshot of the Mopidy Server.
@@ -27,4 +13,17 @@ restore:
           integration: mopidy
           domain: media_player
 
+snapshot:
+  name: Snapshot
+  description: Take a snapshot of the Mopidy Server
+  fields:
+    entity_id:
+      name: Entity ID
+      description: Name(s) of entities that will be snapshotted.
+      example: media_player.figrindan_local
+      required: true
+      selector:
+        entity:
+          integration: mopidy
+          domain: media_player
 
