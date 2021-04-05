@@ -103,9 +103,10 @@ class MopidyConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 _validate_input, discovery_info["hostname"], discovery_info["port"]
             )
         except reConnectionError as error:
-            _LOGGER.warning("Not a mopidy server", error)
+            _LOGGER.warning("%s@%d is not a mopidy server", discovery_info["hostname"], discovery_info["port"])
             return self.async_abort(reason="not_mopidy")
         except Exception:
+            _LOGGER.error("An error ocurred connecting to %s:%s", discovery_info["hostname"], discovery_info["port"])
             return self.async_abort(reason="not_mopidy")
 
         _LOGGER.info(
