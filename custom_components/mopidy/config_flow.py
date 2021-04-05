@@ -13,7 +13,7 @@ from homeassistant.core import callback
 from homeassistant.helpers.typing import DiscoveryInfoType
 import homeassistant.helpers.config_validation as cv
 
-from .const import DOMAIN, DEFAULT_PORT
+from .const import DOMAIN, DEFAULT_PORT  # pylint: disable=unused-import
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -73,11 +73,13 @@ class MopidyConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 await self.hass.async_add_executor_job(
                     _validate_input, self._host, self._port
                 )
-            except reConnectionError as error:
-                _LOGGER.error("Can't connect", error)
+            except reConnectionError:
+                _LOGGER.error("Can't connect to %s:%d", self._host, self._port)
                 errors["base"] = "cannot_connect"
-            except Exception:
-                _LOGGER.exception("Unexpected exception")
+            except:  # pylint: disable=bare-except
+                _LOGGER.exception(
+                    "Unexpected exception connecting to %s:%d", self._host, self._port
+                )
                 errors["base"] = "unknown"
 
             if not errors:
@@ -102,11 +104,19 @@ class MopidyConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             await self.hass.async_add_executor_job(
                 _validate_input, discovery_info["hostname"], discovery_info["port"]
             )
-        except reConnectionError as error:
-            _LOGGER.warning("%s@%d is not a mopidy server", discovery_info["hostname"], discovery_info["port"])
+        except reConnectionError:
+            _LOGGER.warning(
+                "%s@%d is not a mopidy server",
+                discovery_info["hostname"],
+                discovery_info["port"],
+            )
             return self.async_abort(reason="not_mopidy")
-        except Exception:
-            _LOGGER.error("An error ocurred connecting to %s:%s", discovery_info["hostname"], discovery_info["port"])
+        except:  # pylint: disable=bare-except
+            _LOGGER.error(
+                "An error ocurred connecting to %s:%s",
+                discovery_info["hostname"],
+                discovery_info["port"],
+            )
             return self.async_abort(reason="not_mopidy")
 
         _LOGGER.info(

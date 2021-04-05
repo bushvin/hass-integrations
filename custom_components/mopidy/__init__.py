@@ -20,9 +20,7 @@ async def async_setup(hass: HomeAssistant, config: dict):
 
 
 def _test_connection(host, port):
-    client = MopidyAPI(
-        host=host, port=port, use_websocket=False
-    )
+    client = MopidyAPI(host=host, port=port, use_websocket=False)
     client.rpc_call("core.get_version")
     return True
 
@@ -30,7 +28,9 @@ def _test_connection(host, port):
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
     """Set up the mopidy from a config entry."""
     try:
-        await hass.async_add_executor_job(_test_connection, entry.data[CONF_HOST], entry.data[CONF_PORT])
+        await hass.async_add_executor_job(
+            _test_connection, entry.data[CONF_HOST], entry.data[CONF_PORT]
+        )
 
     except reConnectionError as error:
         raise ConfigEntryNotReady from error

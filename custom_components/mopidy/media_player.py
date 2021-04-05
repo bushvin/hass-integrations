@@ -143,20 +143,20 @@ async def async_setup_entry(
     async_add_entities([entity])
 
     platform = entity_platform.current_platform.get()
-    
+
     platform.async_register_entity_service(SERVICE_RESTORE, {}, "restore")
     platform.async_register_entity_service(
         SERVICE_SEARCH,
         {
-            vol.Optional('exact'): cv.boolean,
-            vol.Optional('keyword'): cv.string,
-            vol.Optional('keyword_album'): cv.string,
-            vol.Optional('keyword_artist'): cv.string,
-            vol.Optional('keyword_genre'): cv.string,
-            vol.Optional('keyword_track_name'): cv.string,
-            vol.Optional('source'): cv.string,
+            vol.Optional("exact"): cv.boolean,
+            vol.Optional("keyword"): cv.string,
+            vol.Optional("keyword_album"): cv.string,
+            vol.Optional("keyword_artist"): cv.string,
+            vol.Optional("keyword_genre"): cv.string,
+            vol.Optional("keyword_track_name"): cv.string,
+            vol.Optional("source"): cv.string,
         },
-        "search"
+        "search",
     )
     platform.async_register_entity_service(SERVICE_SNAPSHOT, {}, "snapshot")
 
@@ -316,12 +316,12 @@ class MopidyMediaPlayerEntity(MediaPlayerEntity):
 
         self._tracklist_tracks = [t.uri for t in self.client.tracklist.get_tracks()]
         self._tracklist_index = self.client.tracklist.index()
-    
+
     def search(self, **kwargs):
         """Search the Mopidy Server media library."""
         query = {}
         uris = None
-        if isinstance(kwargs.get("keyword"),str):
+        if isinstance(kwargs.get("keyword"), str):
             query["any"] = [kwargs["keyword"].strip()]
 
         if isinstance(kwargs.get("keyword_album"), str):
@@ -331,25 +331,27 @@ class MopidyMediaPlayerEntity(MediaPlayerEntity):
             query["artist"] = [kwargs["keyword_artist"].strip()]
 
         if isinstance(kwargs.get("keyword_genre"), str):
-            query["genre"] = [ kwargs["keyword_genre"].strip()]
+            query["genre"] = [kwargs["keyword_genre"].strip()]
 
         if isinstance(kwargs.get("keyword_track_name"), str):
             query["track_name"] = [kwargs["keyword_track_name"].strip()]
 
         if len(query.keys()) == 0:
             return
-        
-        if isinstance(kwargs.get("source"),str):
+
+        if isinstance(kwargs.get("source"), str):
             uris = []
-            for el in kwargs["source"].split(","):
-                if el.partition(":")[1] == '':
-                    el = el + ":"
-                if el.partition(":")[0] in self.supported_uri_schemes:
-                    uris.append(el)
+            for source in kwargs["source"].split(","):
+                if source.partition(":")[1] == "":
+                    source = source + ":"
+                if source.partition(":")[0] in self.supported_uri_schemes:
+                    uris.append(source)
             if len(uris) == 0:
                 uris = None
 
-        search = self.client.library.search(query=query, uris=uris, exact=kwargs.get("exact",False))
+        search = self.client.library.search(
+            query=query, uris=uris, exact=kwargs.get("exact", False)
+        )
         track_uris = []
         for result in search:
             for track in getattr(result, "tracks", []):
@@ -548,7 +550,7 @@ class MopidyMediaPlayerEntity(MediaPlayerEntity):
                 support | SUPPORT_VOLUME_MUTE | SUPPORT_VOLUME_SET | SUPPORT_VOLUME_STEP
             )
         return support
-    
+
     @property
     def source(self):
         """Name of the current input source."""
@@ -593,7 +595,7 @@ class MopidyMediaPlayerEntity(MediaPlayerEntity):
 
     def media_next_track(self):
         """Send next track command."""
-        self.client.playback.next()
+        self.client.playback.next() # pylint: disable=not-callable
 
     def media_seek(self, position):
         """Send seek command."""
@@ -733,7 +735,6 @@ class MopidyMediaPlayerEntity(MediaPlayerEntity):
 
     async def async_browse_media(self, media_content_type=None, media_content_id=None):
         """Implement the websocket media browsing helper."""
-
         return await self.hass.async_add_executor_job(
             self._media_library_payload,
             dict(
@@ -748,7 +749,6 @@ class MopidyMediaPlayerEntity(MediaPlayerEntity):
 
     def _media_item_image_url(self, source, url):
         """Return the correct url to the item's thumbnail."""
-
         if source == "local":
             url = f"http://{self.hostname}:{self.port}{url}"
 
@@ -758,8 +758,11 @@ class MopidyMediaPlayerEntity(MediaPlayerEntity):
     def _media_library_payload(self, payload):
         """Create response payload to describe contents of a specific library."""
         _image_uris = []
-        
-        if payload.get("media_content_type") is None or payload.get("media_content_id") is None:
+
+        if (
+            payload.get("media_content_type") is None
+            or payload.get("media_content_id") is None
+        ):
             _LOGGER.error("Missing type or uri for media item payload: %s", payload)
             raise MissingMediaInformation
 
@@ -836,9 +839,9 @@ class MopidyMediaPlayerEntity(MediaPlayerEntity):
         ]
         return BrowseMedia(**library_info)
 
+
 def get_media_info(info):
     """Build Library object."""
-
     disabled_uris = ["local:directory?type=track"]
     if info["media_content_id"] in CACHE_TITLES:
         info["name"] = CACHE_TITLES[info["media_content_id"]]
