@@ -1,20 +1,16 @@
 """Support to interact with a MopidyMusic Server."""
-import re
 import logging
+import re
+
 from mopidyapi import MopidyAPI
 from requests.exceptions import ConnectionError as reConnectionError
 import voluptuous as vol
 
-from homeassistant.config_entries import ConfigEntry
-from homeassistant.core import HomeAssistant
 from homeassistant.components.media_player import (
+    PLATFORM_SCHEMA,
     BrowseMedia,
     MediaPlayerEntity,
-    PLATFORM_SCHEMA,
 )
-from homeassistant.components.media_player.errors import BrowseError
-import homeassistant.util.dt as dt_util
-from homeassistant.helpers import config_validation as cv, entity_platform
 from homeassistant.components.media_player.const import (
     MEDIA_CLASS_ALBUM,
     MEDIA_CLASS_ARTIST,
@@ -52,17 +48,22 @@ from homeassistant.components.media_player.const import (
     SUPPORT_VOLUME_SET,
     SUPPORT_VOLUME_STEP,
 )
+from homeassistant.components.media_player.errors import BrowseError
+from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import (
     CONF_HOST,
     CONF_ID,
-    CONF_PORT,
     CONF_NAME,
-    STATE_UNAVAILABLE,
-    STATE_PLAYING,
-    STATE_PAUSED,
+    CONF_PORT,
     STATE_OFF,
+    STATE_PAUSED,
+    STATE_PLAYING,
+    STATE_UNAVAILABLE,
     STATE_UNKNOWN,
 )
+from homeassistant.core import HomeAssistant
+from homeassistant.helpers import config_validation as cv, entity_platform
+import homeassistant.util.dt as dt_util
 
 from .const import (
     CACHE_ART,
@@ -595,7 +596,7 @@ class MopidyMediaPlayerEntity(MediaPlayerEntity):
 
     def media_next_track(self):
         """Send next track command."""
-        self.client.playback.next() # pylint: disable=not-callable
+        self.client.playback.next()  # pylint: disable=not-callable
 
     def media_seek(self, position):
         """Send seek command."""

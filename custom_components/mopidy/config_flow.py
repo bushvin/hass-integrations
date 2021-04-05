@@ -1,19 +1,19 @@
 """Config flow for Mopidy."""
-import re
 import logging
+import re
 from typing import Optional
 
 from mopidyapi import MopidyAPI
-import voluptuous as vol
 from requests.exceptions import ConnectionError as reConnectionError
+import voluptuous as vol
 
 from homeassistant import config_entries
 from homeassistant.const import CONF_HOST, CONF_ID, CONF_NAME, CONF_PORT
 from homeassistant.core import callback
-from homeassistant.helpers.typing import DiscoveryInfoType
 import homeassistant.helpers.config_validation as cv
+from homeassistant.helpers.typing import DiscoveryInfoType
 
-from .const import DOMAIN, DEFAULT_PORT  # pylint: disable=unused-import
+from .const import DEFAULT_PORT, DOMAIN  # pylint: disable=unused-import
 
 _LOGGER = logging.getLogger(__name__)
 
