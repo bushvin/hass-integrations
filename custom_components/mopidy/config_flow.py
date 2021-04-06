@@ -76,7 +76,7 @@ class MopidyConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             except reConnectionError:
                 _LOGGER.error("Can't connect to %s:%d", self._host, self._port)
                 errors["base"] = "cannot_connect"
-            except:  # pylint: disable=bare-except
+            except:  # noqa: E722 # pylint: disable=bare-except
                 _LOGGER.exception(
                     "Unexpected exception connecting to %s:%d", self._host, self._port
                 )
@@ -111,9 +111,9 @@ class MopidyConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 discovery_info["port"],
             )
             return self.async_abort(reason="not_mopidy")
-        except:  # pylint: disable=bare-except
+        except:  # noqa: E722 # pylint: disable=bare-except
             _LOGGER.error(
-                "An error ocurred connecting to %s:%s",
+                "An error occurred connecting to %s:%s",
                 discovery_info["hostname"],
                 discovery_info["port"],
             )

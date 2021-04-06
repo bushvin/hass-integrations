@@ -1,4 +1,3 @@
----
 restore:
   name: Restore
   description: Restore a snapshot of the Mopidy Server.
@@ -6,16 +5,6 @@ restore:
     entity:
       integration: mopidy
       domain: media_player
-  #fields:
-  #  entity_id:
-  #    name: Entity ID
-  #    description: Name(s) of entities that will be restored.
-  #    example: media_player.figrindan_local
-  #    required: true
-  #    selector:
-  #      entity:
-  #        integration: mopidy
-  #        domain: media_player
 
 snapshot:
   name: Snapshot
@@ -24,16 +13,6 @@ snapshot:
     entity:
       integration: mopidy
       domain: media_player
-  #fields:
-  #  entity_id:
-  #    name: Entity ID
-  #    description: Name(s) of entities that will be snapshotted.
-  #    example: media_player.figrindan_local
-  #    required: true
-  #    selector:
-  #      entity:
-  #        integration: mopidy
-  #        domain: media_player
 
 search:
   name: Search
@@ -85,8 +64,8 @@ search:
         text:
     source:
       name: Limit search to source
-      description: 
-        URI sources to search. 
+      description:
+        URI sources to search.
         `local`, `spotify` and `tunein` are the only supported options. Make sure to have these extensions enabled on
         your Mopidy Server! Separate multiple sources with a comma (,).
       example: "local,spotify"

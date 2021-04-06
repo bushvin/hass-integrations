@@ -738,14 +738,14 @@ class MopidyMediaPlayerEntity(MediaPlayerEntity):
         """Implement the websocket media browsing helper."""
         return await self.hass.async_add_executor_job(
             self._media_library_payload,
-            dict(
-                media_content_type=(
+            {
+                "media_content_type": (
                     "library" if media_content_type is None else media_content_type
                 ),
-                media_content_id=(
+                "media_content_id": (
                     "library" if media_content_id is None else media_content_id
                 ),
-            ),
+            },
         )
 
     def _media_item_image_url(self, source, url):
