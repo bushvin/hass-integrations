@@ -20,7 +20,12 @@ _LOGGER = logging.getLogger(__name__)
 
 def _validate_input(host, port):
     """Validate the user input."""
-    client = MopidyAPI(host=host, port=port, use_websocket=False)
+    client = MopidyAPI(
+        host=host,
+        port=port,
+        use_websocket=False,
+        logger=logging.getLogger(__name__ + ".client"),
+    )
     client.rpc_call("core.get_version")
     return True
 
