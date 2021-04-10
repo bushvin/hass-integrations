@@ -366,13 +366,14 @@ class MopidyMediaPlayerEntity(MediaPlayerEntity):
     def snapshot(self):
         """Make a snapshot of Mopidy Server."""
         self._snapshot = {
-            "tracklist": self._tracklist_tracks,
-            "tracklist_index": self._tracklist_index,
             "mediaposition": self._media_position,
-            "volume": self._volume,
             "muted": self._muted,
             "repeat_mode": self._repeat_mode,
             "shuffled": self._shuffled,
+            "state": self._state,
+            "tracklist": self._tracklist_tracks,
+            "tracklist_index": self._tracklist_index,
+            "volume": self._volume,
         }
 
     def restore(self):
@@ -382,17 +383,23 @@ class MopidyMediaPlayerEntity(MediaPlayerEntity):
         self.media_stop()
         self.clear_playlist()
         self.client.tracklist.add(uris=self._snapshot["tracklist"])
-        self.client.playback.play(
-            tlid=getattr(
-                self.client.tracklist.get_tl_tracks()[
-                    self._snapshot["tracklist_index"]
-                ],
-                "tlid",
-            )
-        )
 
-        if self._snapshot["mediaposition"] > 0:
-            self.media_seek(self._snapshot["mediaposition"])
+        if self._snapshot["state"] == STATE_OFF:
+            self.turn_off()
+        elif self._snapshot["state"] in [ STATE_PLAYING, STATE_PAUSED ]:
+            self.client.playback.play(
+                tlid=getattr(
+                    self.client.tracklist.get_tl_tracks()[
+                        self._snapshot["tracklist_index"]
+                    ],
+                    "tlid",
+                )
+            )
+            if self._snapshot["mediaposition"] > 0:
+                self.media_seek(self._snapshot["mediaposition"])
+
+            if self._snapshot["state"] == STATE_PAUSED:
+                self.media_pause()
 
         self.set_volume_level(self._snapshot["volume"])
         self.mute_volume(self._snapshot["muted"])
