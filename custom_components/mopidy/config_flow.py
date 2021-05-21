@@ -1,6 +1,7 @@
 """Config flow for Mopidy."""
 import logging
 import re
+import socket
 from typing import Optional
 
 from mopidyapi import MopidyAPI
@@ -8,7 +9,7 @@ from requests.exceptions import ConnectionError as reConnectionError
 import voluptuous as vol
 
 from homeassistant import config_entries
-from homeassistant.const import CONF_HOST, CONF_ID, CONF_NAME, CONF_PORT
+from homeassistant.const import CONF_HOST, CONF_ID, CONF_NAME, CONF_PORT, CONF_TYPE
 from homeassistant.core import callback
 import homeassistant.helpers.config_validation as cv
 from homeassistant.helpers.typing import DiscoveryInfoType
@@ -105,40 +106,24 @@ class MopidyConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
     async def async_step_zeroconf(self, discovery_info: DiscoveryInfoType):
         """Handle zeroconf discovery."""
-        try:
-            await self.hass.async_add_executor_job(
-                _validate_input, discovery_info["hostname"], discovery_info["port"]
-            )
-        except reConnectionError:
-            _LOGGER.warning(
-                "%s@%d is not a mopidy server",
-                discovery_info["hostname"],
-                discovery_info["port"],
-            )
+        if discovery_info[CONF_TYPE] == '_mopidy-http._tcp.local.':
+            # Get FQDN from IP, since in Docker containers .local can't be resolved.
+            ip = discovery_info["host"]
+            host = socket.gethostbyaddr(ip)[0]
+            self._host = host
+            # Get port.
+            self._port = int(discovery_info["port"])
+            # Get name.a
+            self._name = discovery_info[CONF_NAME]
+            # Set UUID.
+            self._uuid = host.rsplit(".")[0] + "_" + str(self._port)
+
+            await self._set_uid_and_abort()
+
+            return await self.async_step_discovery_confirm()
+
+        else:
             return self.async_abort(reason="not_mopidy")
-        except:  # noqa: E722 # pylint: disable=bare-except
-            _LOGGER.error(
-                "An error occurred connecting to %s:%s",
-                discovery_info["hostname"],
-                discovery_info["port"],
-            )
-            return self.async_abort(reason="not_mopidy")
-
-        _LOGGER.info(
-            "Discovered a Mopidy Server @ %s (%s) on port %d",
-            discovery_info["hostname"],
-            discovery_info["host"],
-            discovery_info["port"],
-        )
-
-        self._host = discovery_info["hostname"]
-        self._port = int(discovery_info["port"])
-        self._name = discovery_info["properties"].get("name", self._host)
-        self._uuid = re.sub(r"[._-]+", "_", self._host) + "_" + str(self._port)
-
-        await self._set_uid_and_abort()
-
-        return await self.async_step_discovery_confirm()
 
     async def async_step_discovery_confirm(self, user_input=None):
         """Handle user-confirmation of discovered node."""
