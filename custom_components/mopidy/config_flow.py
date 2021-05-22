@@ -1,6 +1,7 @@
 """Config flow for Mopidy."""
 import logging
 import re
+import socket
 from typing import Optional
 
 from mopidyapi import MopidyAPI
@@ -8,7 +9,7 @@ from requests.exceptions import ConnectionError as reConnectionError
 import voluptuous as vol
 
 from homeassistant import config_entries
-from homeassistant.const import CONF_HOST, CONF_ID, CONF_NAME, CONF_PORT
+from homeassistant.const import CONF_HOST, CONF_ID, CONF_NAME, CONF_PORT, CONF_TYPE
 from homeassistant.core import callback
 import homeassistant.helpers.config_validation as cv
 from homeassistant.helpers.typing import DiscoveryInfoType
@@ -105,36 +106,36 @@ class MopidyConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
     async def async_step_zeroconf(self, discovery_info: DiscoveryInfoType):
         """Handle zeroconf discovery."""
+        # Get mDNS address.
+        mdns_address = discovery_info["hostname"][:-1]
+
+        # Try to resolve mDNS address (no Docker HASS scenario)
         try:
-            await self.hass.async_add_executor_job(
-                _validate_input, discovery_info["hostname"], discovery_info["port"]
-            )
-        except reConnectionError:
-            _LOGGER.warning(
-                "%s@%d is not a mopidy server",
-                discovery_info["hostname"],
-                discovery_info["port"],
-            )
-            return self.async_abort(reason="not_mopidy")
-        except:  # noqa: E722 # pylint: disable=bare-except
-            _LOGGER.error(
-                "An error occurred connecting to %s:%s",
-                discovery_info["hostname"],
-                discovery_info["port"],
-            )
-            return self.async_abort(reason="not_mopidy")
+            socket.gethostbyname(mdns_address)
+            # If success, use the mDNS address as host.
+            host = mdns_address
 
-        _LOGGER.info(
-            "Discovered a Mopidy Server @ %s (%s) on port %d",
-            discovery_info["hostname"],
-            discovery_info["host"],
-            discovery_info["port"],
-        )
+        # Otherwise:
+        except socket.gaierror:
 
-        self._host = discovery_info["hostname"]
+            # Try to reverse solve the IP to a DNS name (Docker HASS with reachable local DNS scenario)
+            try:
+                ip = discovery_info["host"]
+                host = socket.gethostbyaddr(ip)[0]
+
+            # Fallback on IP in last resort (Docker HASS without local DNS scenario)
+            except socket.gaierror:
+                host = ip
+
+        # Set host.
+        self._host = host
+        # Set port.
         self._port = int(discovery_info["port"])
-        self._name = discovery_info["properties"].get("name", self._host)
-        self._uuid = re.sub(r"[._-]+", "_", self._host) + "_" + str(self._port)
+        # Set name.
+        self._name = discovery_info[CONF_NAME]
+        # Set UUID.
+        node_name = mdns_address.rsplit(".")[0]
+        self._uuid = node_name + "_" + str(self._port)
 
         await self._set_uid_and_abort()
 
