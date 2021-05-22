@@ -106,44 +106,40 @@ class MopidyConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
     async def async_step_zeroconf(self, discovery_info: DiscoveryInfoType):
         """Handle zeroconf discovery."""
-        if discovery_info[CONF_TYPE] == '_mopidy-http._tcp.local.':
-            # Get mDNS address.
-            mdns_address = discovery_info["hostname"][:-1]
+        # Get mDNS address.
+        mdns_address = discovery_info["hostname"][:-1]
 
-            # Try to resolve mDNS address (no Docker HASS scenario)
+        # Try to resolve mDNS address (no Docker HASS scenario)
+        try:
+            socket.gethostbyname(mdns_address)
+            # If success, use the mDNS address as host.
+            host = mdns_address
+
+        # Otherwise:
+        except socket.gaierror:
+
+            # Try to reverse solve the IP to a DNS name (Docker HASS with reachable local DNS scenario)
             try:
-                socket.gethostbyname(mdns_address)
-                # If success, use the mDNS address as host.
-                host = mdns_address
+                ip = discovery_info["host"]
+                host = socket.gethostbyaddr(ip)[0]
 
-            # Otherwise:
+            # Fallback on IP in last resort (Docker HASS without local DNS scenario)
             except socket.gaierror:
+                host = ip
 
-                # Try to reverse solve the IP to a DNS name (Docker HASS with reachable local DNS scenario)
-                try:
-                    ip = discovery_info["host"]
-                    host = socket.gethostbyaddr(ip)[0]
+        # Set host.
+        self._host = host
+        # Set port.
+        self._port = int(discovery_info["port"])
+        # Set name.
+        self._name = discovery_info[CONF_NAME]
+        # Set UUID.
+        node_name = mdns_address.rsplit(".")[0]
+        self._uuid = node_name + "_" + str(self._port)
 
-                # Fallback on IP in last resort (Docker HASS without local DNS scenario)
-                except socket.gaierror:
-                    host = ip
+        await self._set_uid_and_abort()
 
-            # Set host.
-            self._host = host
-            # Set port.
-            self._port = int(discovery_info["port"])
-            # Set name.
-            self._name = discovery_info[CONF_NAME]
-            # Set UUID.
-            node_name = mdns_address.rsplit(".")[0]
-            self._uuid = node_name + "_" + str(self._port)
-
-            await self._set_uid_and_abort()
-
-            return await self.async_step_discovery_confirm()
-
-        else:
-            return self.async_abort(reason="not_mopidy")
+        return await self.async_step_discovery_confirm()
 
     async def async_step_discovery_confirm(self, user_input=None):
         """Handle user-confirmation of discovered node."""
