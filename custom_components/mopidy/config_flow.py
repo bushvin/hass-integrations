@@ -107,16 +107,36 @@ class MopidyConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     async def async_step_zeroconf(self, discovery_info: DiscoveryInfoType):
         """Handle zeroconf discovery."""
         if discovery_info[CONF_TYPE] == '_mopidy-http._tcp.local.':
-            # Get FQDN from IP, since in Docker containers .local can't be resolved.
-            ip = discovery_info["host"]
-            host = socket.gethostbyaddr(ip)[0]
+            # Get mDNS address.
+            mdns_address = discovery_info["hostname"][:-1]
+
+            # Try to resolve mDNS address (no Docker HASS scenario)
+            try:
+                socket.gethostbyname(mdns_address)
+                # If success, use the mDNS address as host.
+                host = mdns_address
+
+            # Otherwise:
+            except socket.gaierror:
+
+                # Try to reverse solve the IP to a DNS name (Docker HASS with reachable local DNS scenario)
+                try:
+                    ip = discovery_info["host"]
+                    host = socket.gethostbyaddr(ip)[0]
+
+                # Fallback on IP in last resort (Docker HASS without local DNS scenario)
+                except socket.gaierror:
+                    host = ip
+
+            # Set host.
             self._host = host
-            # Get port.
+            # Set port.
             self._port = int(discovery_info["port"])
-            # Get name.a
+            # Set name.
             self._name = discovery_info[CONF_NAME]
             # Set UUID.
-            self._uuid = host.rsplit(".")[0] + "_" + str(self._port)
+            node_name = mdns_address.rsplit(".")[0]
+            self._uuid = node_name + "_" + str(self._port)
 
             await self._set_uid_and_abort()
 
