@@ -1,10 +1,18 @@
 {
     "config_flow": true,
-    "codeowners": ["@bushvin"],
+    "codeowners": [
+        "@bushvin"
+    ],
     "domain": "mopidy",
     "documentation": "https://github.com/bushvin/hass-integrations#mopidy",
     "name": "Mopidy",
-    "requirements": ["mopidyapi==1.0.0"],
+    "requirements": [
+        "mopidyapi==1.0.0"
+    ],
     "version": "1.4.0",
-    "zeroconf": [{"type": "_http._tcp.local."}]
+    "zeroconf": [
+        {
+            "type": "_mopidy-http._tcp.local."
+        }
+    ]
 }
