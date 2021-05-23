@@ -5,10 +5,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+
+## [1.4.1] - 2021-05-23
 ### Changed
 - bugfix: snapshot and restore player state (thanks [AdmiralStipe](https://community.home-assistant.io/u/AdmiralStipe))
 - better messages when device detected through zeroconf is not a mopidy server
 - formatting (pylint, pep8, pydocstyle)
+- fix zeroconf issues on docker (thanks, [@guix77](https://github.com/guix77))
+- set name to zeroconf name and port
 
 ## [1.4.0] - 2021-04-05
 ### Changed

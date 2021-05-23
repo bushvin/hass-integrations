@@ -120,19 +120,23 @@ class MopidyConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
             # Try to reverse solve the IP to a DNS name (Docker HASS with reachable local DNS scenario)
             try:
-                ip = discovery_info["host"]
-                host = socket.gethostbyaddr(ip)[0]
+                ip_address = discovery_info["host"]
+                host = socket.gethostbyaddr(ip_address)[0]
 
             # Fallback on IP in last resort (Docker HASS without local DNS scenario)
             except socket.gaierror:
-                host = ip
+                host = ip_address
 
         # Set host.
         self._host = host
         # Set port.
         self._port = int(discovery_info["port"])
         # Set name.
-        self._name = discovery_info[CONF_NAME]
+        self._name = (
+            discovery_info[CONF_NAME][: (len(discovery_info[CONF_TYPE]) + 1) * -1]
+            + "@"
+            + str(self._port)
+        )
         # Set UUID.
         node_name = mdns_address.rsplit(".")[0]
         self._uuid = node_name + "_" + str(self._port)
