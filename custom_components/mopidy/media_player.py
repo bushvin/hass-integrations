@@ -365,6 +365,7 @@ class MopidyMediaPlayerEntity(MediaPlayerEntity):
 
     def snapshot(self):
         """Make a snapshot of Mopidy Server."""
+        self._fetch_status()
         self._snapshot = {
             "mediaposition": self._media_position,
             "muted": self._muted,
@@ -386,6 +387,13 @@ class MopidyMediaPlayerEntity(MediaPlayerEntity):
 
         if self._snapshot["state"] == STATE_OFF:
             self.turn_off()
+            self.set_volume_level(self._snapshot["volume"])
+            self.mute_volume(self._snapshot["muted"])
+            self.set_repeat(self._snapshot["repeat_mode"])
+            self.set_shuffle(self._snapshot["shuffled"])
+
+            self._snapshot = None
+
         elif self._snapshot["state"] in [ STATE_PLAYING, STATE_PAUSED ]:
             self.client.playback.play(
                 tlid=getattr(
@@ -395,18 +403,26 @@ class MopidyMediaPlayerEntity(MediaPlayerEntity):
                     "tlid",
                 )
             )
+            self.restore_onplay()
+    
+    async def restore_onplay(self):
+        if self.client.playback.get_state() == "playing":
+            _LOGGER.info("Finally, the player is playing")
             if self._snapshot["mediaposition"] > 0:
                 self.media_seek(self._snapshot["mediaposition"])
 
             if self._snapshot["state"] == STATE_PAUSED:
                 self.media_pause()
 
-        self.set_volume_level(self._snapshot["volume"])
-        self.mute_volume(self._snapshot["muted"])
-        self.set_repeat(self._snapshot["repeat_mode"])
-        self.set_shuffle(self._snapshot["shuffled"])
+            self.set_volume_level(self._snapshot["volume"])
+            self.mute_volume(self._snapshot["muted"])
+            self.set_repeat(self._snapshot["repeat_mode"])
+            self.set_shuffle(self._snapshot["shuffled"])
 
-        self._snapshot = None
+            self._snapshot = None
+        else:
+            _LOGGER.info("waiting for player to actually start playing")
+            await asyncio.sleep(1)
 
     @property
     def unique_id(self):
@@ -584,30 +600,37 @@ class MopidyMediaPlayerEntity(MediaPlayerEntity):
     def turn_on(self):
         """Turn the media player on."""
         self.client.playback.play()
+        self._fetch_status()
 
     def media_play(self):
         """Send play command."""
         self.client.playback.play()
+        self._fetch_status()
 
     def media_pause(self):
         """Send pause command."""
         self.client.playback.pause()
+        self._fetch_status()
 
     def media_stop(self):
         """Send stop command."""
         self.client.playback.stop()
+        self._fetch_status()
 
     def media_previous_track(self):
         """Send previous track command."""
         self.client.playback.previous()
+        self._fetch_status()
 
     def media_next_track(self):
         """Send next track command."""
         self.client.playback.next()  # pylint: disable=not-callable
+        self._fetch_status()
 
     def media_seek(self, position):
         """Send seek command."""
         self.client.playback.seek(int(position * 1000))
+        self._fetch_status()
 
     def play_media(self, media_type, media_id, **kwargs):
         """Play a piece of media."""
@@ -645,6 +668,7 @@ class MopidyMediaPlayerEntity(MediaPlayerEntity):
         else:
             _LOGGER.error("No media for %s (%s) could be found.", media_id, media_type)
             raise MissingMediaInformation
+        self._fetch_status()
 
     def select_source(self, source):
         """Select input source."""
@@ -653,6 +677,7 @@ class MopidyMediaPlayerEntity(MediaPlayerEntity):
                 self.play_media(MEDIA_TYPE_PLAYLIST, playlist.uri)
                 return playlist.uri
         raise ValueError(f"Could not find {source}")
+        self._fetch_status()
 
     def clear_playlist(self):
         """Clear players playlist."""
