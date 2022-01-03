@@ -107,7 +107,7 @@ class MopidyConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     async def async_step_zeroconf(self, discovery_info: DiscoveryInfoType):
         """Handle zeroconf discovery."""
         # Get mDNS address.
-        mdns_address = discovery_info["hostname"][:-1]
+        mdns_address = discovery_info.hostname[:-1]
 
         # Try to resolve mDNS address (no Docker HASS scenario)
         try:
@@ -120,7 +120,7 @@ class MopidyConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
             # Try to reverse solve the IP to a DNS name (Docker HASS with reachable local DNS scenario)
             try:
-                ip_address = discovery_info["host"]
+                ip_address = discovery_info.host
                 host = socket.gethostbyaddr(ip_address)[0]
 
             # Fallback on IP in last resort (Docker HASS without local DNS scenario)
@@ -130,10 +130,10 @@ class MopidyConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         # Set host.
         self._host = host
         # Set port.
-        self._port = int(discovery_info["port"])
+        self._port = int(discovery_info.port)
         # Set name.
         self._name = (
-            discovery_info[CONF_NAME][: (len(discovery_info[CONF_TYPE]) + 1) * -1]
+            getattr(discovery_info, CONF_NAME)[: len(getattr(discovery_info, CONF_TYPE) +1) * -1]
             + "@"
             + str(self._port)
         )
