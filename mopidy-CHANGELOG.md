@@ -5,7 +5,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+- Happy New Year to all
+
+## [1.4.2] - 2022-01-03
 - mopidy play instruction is slow on streming media. now waiting for status to change into `playing` asynchronously
+- update code to comply with 2022.6 deprecation (thanks, [VDRainer](https://github.com/VDRainer))
 
 ## [1.4.1] - 2021-05-23
 ### Changed

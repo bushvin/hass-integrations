@@ -1,5 +1,8 @@
 {
   "name": "Mopidy Media Player component",
+  "country": [
+    "BE"
+  ],
   "domains": [
     "media_player"
   ],
