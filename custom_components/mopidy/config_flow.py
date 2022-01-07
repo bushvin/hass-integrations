@@ -133,7 +133,7 @@ class MopidyConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         self._port = int(discovery_info.port)
         # Set name.
         self._name = (
-            getattr(discovery_info, CONF_NAME)[: len(getattr(discovery_info, CONF_TYPE) +1) * -1]
+            getattr(discovery_info, CONF_NAME)[: (len(getattr(discovery_info, CONF_TYPE)) +1) * -1]
             + "@"
             + str(self._port)
         )

@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 - Happy New Year to all
 
+### Fixed
+- change of code for 2022.6 warning introduced issue where an int was added to a string.
+
 ## [1.4.3] - 2022-01-07
 ### Fixed
 - git version tag added before last PR
