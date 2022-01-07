@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 - Happy New Year to all
 
+## [1.4.3] - 2022-01-07
+### Fixed
+- git version tag added before last PR
+
 ## [1.4.2] - 2022-01-03
 - mopidy play instruction is slow on streming media. now waiting for status to change into `playing` asynchronously
 - update code to comply with 2022.6 deprecation (thanks, [VDRainer](https://github.com/VDRainer))
