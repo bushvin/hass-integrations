@@ -1,10 +1,13 @@
 """Support to interact with a MopidyMusic Server."""
+import asyncio
 import logging
 import re
 
 from mopidyapi import MopidyAPI
 from requests.exceptions import ConnectionError as reConnectionError
 import voluptuous as vol
+
+from homeassistant.components import media_source, spotify
 
 from homeassistant.components.media_player import (
     PLATFORM_SCHEMA,
@@ -14,6 +17,7 @@ from homeassistant.components.media_player import (
 from homeassistant.components.media_player.const import (
     MEDIA_CLASS_ALBUM,
     MEDIA_CLASS_ARTIST,
+    MEDIA_CLASS_APP,
     MEDIA_CLASS_COMPOSER,
     MEDIA_CLASS_DIRECTORY,
     MEDIA_CLASS_GENRE,
@@ -125,6 +129,11 @@ PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend(
         vol.Optional(CONF_PORT, default=DEFAULT_PORT): cv.port,
     }
 )
+
+
+def media_source_filter(item: BrowseMedia):
+    """Filter media sources."""
+    return item.media_content_type.startswith("audio/")
 
 
 class MissingMediaInformation(BrowseError):
@@ -394,7 +403,7 @@ class MopidyMediaPlayerEntity(MediaPlayerEntity):
 
             self._snapshot = None
 
-        elif self._snapshot["state"] in [ STATE_PLAYING, STATE_PAUSED ]:
+        elif self._snapshot["state"] in [STATE_PLAYING, STATE_PAUSED]:
             self.client.playback.play(
                 tlid=getattr(
                     self.client.tracklist.get_tl_tracks()[
@@ -404,7 +413,7 @@ class MopidyMediaPlayerEntity(MediaPlayerEntity):
                 )
             )
             self.restore_onplay()
-    
+
     async def restore_onplay(self):
         if self.client.playback.get_state() == "playing":
             _LOGGER.info("Finally, the player is playing")
@@ -636,7 +645,18 @@ class MopidyMediaPlayerEntity(MediaPlayerEntity):
         """Play a piece of media."""
         self._currentplaylist = None
 
-        if media_type == MEDIA_TYPE_PLAYLIST:
+        if media_source.is_media_source_id(media_id):
+            sourced_media = asyncio.run_coroutine_threadsafe(
+                media_source.async_resolve_media(self.hass, media_id), self.hass.loop
+            ).result()
+            media_type = sourced_media.mime_type
+            media_id = sourced_media.url
+            media_uris = [media_id]
+        elif spotify.is_spotify_media_type(media_type):
+            media_type = spotify.resolve_spotify_media_type(media_type)
+            media_id = spotify.spotify_uri_from_media_browser_url(media_id)
+            media_uris = [media_id]
+        elif media_type == MEDIA_TYPE_PLAYLIST:
             playlist = self.client.playlists.lookup(media_id)
             self._currentplaylist = playlist.name
             if media_id.partition(":")[0] == "m3u":
@@ -766,18 +786,84 @@ class MopidyMediaPlayerEntity(MediaPlayerEntity):
         if self._available:
             self._fetch_status()
 
-    async def async_browse_media(self, media_content_type=None, media_content_id=None):
-        """Implement the websocket media browsing helper."""
+    async def async_browse_media(
+        self,
+        media_content_type=None,
+        media_content_id=None,
+    ):
+        _LOGGER.debug(
+            "async_browse_media(%s, %s)", media_content_type, media_content_id
+        )
+
+        if media_content_id is None:
+            return await self.root_payload()
+
+        if media_source.is_media_source_id(media_content_id):
+            return await media_source.async_browse_media(
+                self.hass, media_content_id, content_filter=media_source_filter
+            )
+
+        if spotify.is_spotify_media_type(media_content_type):
+            return await spotify.async_browse_media(
+                self.hass, media_content_type, media_content_id, can_play_artist=False
+            )
+
         return await self.hass.async_add_executor_job(
             self._media_library_payload,
             {
-                "media_content_type": (
-                    "library" if media_content_type is None else media_content_type
-                ),
-                "media_content_id": (
-                    "library" if media_content_id is None else media_content_id
-                ),
+                "media_content_type": media_content_type,
+                "media_content_id": media_content_id,
             },
+        )
+
+    async def root_payload(self):
+        """Return root payload for Mopidy."""
+        children = [
+            BrowseMedia(
+                title="Mopidy",
+                media_class=MEDIA_CLASS_APP,
+                media_content_id="library",
+                media_content_type="library",
+                can_play=False,
+                can_expand=True,
+                thumbnail="https://brands.home-assistant.io/_/mopidy/logo.png",
+            )
+        ]
+
+        # If we have spotify both in mopidy and HA, show the HA component
+        lib = await self.hass.async_add_executor_job(self.client.library.browse, None)
+        for item in lib:
+            if getattr(item, "uri") == "spotify:directory" and "spotify" in self.hass.config.components:
+                result = await spotify.async_browse_media(self.hass, None, None)
+                children.extend(result.children)
+                break
+
+        try:
+            item = await media_source.async_browse_media(
+                self.hass, None, content_filter=media_source_filter
+            )
+            # If domain is None, it's overview of available sources
+            if item.domain is None:
+                children.extend(item.children)
+            else:
+                children.append(item)
+        except media_source.BrowseError:
+            pass
+
+        if len(children) == 1:
+            return await self.async_browse_media(
+                children[0].media_content_type,
+                children[0].media_content_id,
+            )
+
+        return BrowseMedia(
+            title="Mopidy",
+            media_class=MEDIA_CLASS_DIRECTORY,
+            media_content_id="",
+            media_content_type="root",
+            can_play=False,
+            can_expand=True,
+            children=children,
         )
 
     def _media_item_image_url(self, source, url):
