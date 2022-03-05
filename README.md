@@ -56,7 +56,7 @@ media_player:
 ```
 
 ### Services
-#### Service media_player.play_media
+#### Service media\_player.play\_media
 The `media_content_id` needs to be formatted according to the Mopidy URI scheme. These can be easily found using the *Developer tools*.
 
 When using the `play_media` service, the Mopidy Media Player platform will attempt to discover your URL when not properly formatted.
@@ -73,7 +73,7 @@ The playing queue is snapshotted
 |`entity_id`|no|String or list of `entiti_id`s that should have their snapshot restored.|
 
 #### Service mopidy.search
-Search media based on keywords and add them to the queue. This service does not replace the queue, nor does it start playing the queue. This can be achieved through the use of [media_player.clear_playlist](https://www.home-assistant.io/integrations/media_player/) and [media_player.media_play](https://www.home-assistant.io/integrations/media_player/)
+Search media based on keywords and add them to the queue. This service does not replace the queue, nor does it start playing the queue. This can be achieved through the use of [media\_player.clear\_playlist](https://www.home-assistant.io/integrations/media_player/) and [media\_player.media\_play](https://www.home-assistant.io/integrations/media_player/)
 
 **Note:** One of the keyword fields **must** be used: `keyword`, `keyword_album`, `keyword_artist`, `keyword_genre` or `keyword_track_name`
 
@@ -105,17 +105,17 @@ causing delays. Therefore, I have decided to not proxy the art when
 using the Media Library for the time being.
 
 ### Tests
-Mopidy v3.1.1
+Mopidy v3.2.0
 
 Backends:
 - mopidy-beets v4.0.1
 - mopidy-dleyna 2.0.1
 - mopidy-internetarchive v3.0.0
-- mopidy-local v3.2.0
+- mopidy-local v3.2.1
 - mopidy-podcast v3.0.0
-- mopidy-somafm v2.0.0
+- mopidy-somafm v2.0.2
 - mopidy-soundcloud v3.0.1
-- mopidy-spotify v4.1.0
-- mopidy-tunein v1.0.2
+- mopidy-spotify v4.1.1
+- mopidy-tunein v1.1.0
 - mopidy-YouTube v3.2
 

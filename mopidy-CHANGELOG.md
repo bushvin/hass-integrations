@@ -4,6 +4,10 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.4.5] - 2022-03-05
+### Added
+- Support for media browsing and playing from other components in HA (thanks, [koying](https://github.com/koying)
+
 ## [1.4.4] - 2022-02-19
 ### Fixed
 - change of code for 2022.6 warning introduced issue where an int was added to a string.
