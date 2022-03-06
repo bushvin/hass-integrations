@@ -13,6 +13,7 @@ from homeassistant.components.media_player import (
     PLATFORM_SCHEMA,
     BrowseMedia,
     MediaPlayerEntity,
+    async_process_play_media_url,
 )
 from homeassistant.components.media_player.const import (
     MEDIA_CLASS_ALBUM,
@@ -650,7 +651,7 @@ class MopidyMediaPlayerEntity(MediaPlayerEntity):
                 media_source.async_resolve_media(self.hass, media_id), self.hass.loop
             ).result()
             media_type = sourced_media.mime_type
-            media_id = sourced_media.url
+            media_id = async_process_play_media_url(self.hass, sourced_media.url)
             media_uris = [media_id]
         elif spotify.is_spotify_media_type(media_type):
             media_type = spotify.resolve_spotify_media_type(media_type)
