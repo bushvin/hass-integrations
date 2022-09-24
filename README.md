@@ -70,7 +70,7 @@ The playing queue is snapshotted
 
 |Service data attribute|Optional|Description|
 |-|-|-|
-|`entity_id`|no|String or list of `entiti_id`s that should have their snapshot restored.|
+|`entity_id`|no|String or list of `entity_id`s that should have their snapshot restored.|
 
 #### Service mopidy.search
 Search media based on keywords and add them to the queue. This service does not replace the queue, nor does it start playing the queue. This can be achieved through the use of [media\_player.clear\_playlist](https://www.home-assistant.io/integrations/media_player/) and [media\_player.media\_play](https://www.home-assistant.io/integrations/media_player/)
@@ -79,7 +79,7 @@ Search media based on keywords and add them to the queue. This service does not 
 
 |Service data attribute|Optional|Description|Example|
 |-|-|-|-|
-|`entity_id`|no|String or list of `entiti_id`s ito take a snapshot of.| |
+|`entity_id`|no|String or list of `entity_id`s ito take a snapshot of.| |
 |`exact`|yes|String. Should the search be an exact match|false|
 |`keyword`|yes|String. The keywords to search for. Will search all track fields.|Everlong|
 |`keyword_album`|yes|String. The keywords to search for in album titles.|From Mars to Sirius|
@@ -95,7 +95,7 @@ Take a snapshot of what is currently playing on one or more Mopidy Servers. This
 
 |Service data attribute|Optional|Description|
 |-|-|-|
-|`entity_id`|no|String or list of `entiti_id`s ito take a snapshot of.|
+|`entity_id`|no|String or list of `entity_id`s ito take a snapshot of.|
 
 
 ### Notes

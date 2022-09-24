@@ -4,6 +4,18 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.4.7] - 2022-09-24
+
+### Fixed
+
+- BUGFIX: playing mopidy-local "directory" resources (eg `artists/albums`) failed as the resource is not considered
+  a media source according to URI\_SCHEME\_REGEX
+- typo in the README.md
+
+### Added
+
+- support for mopidyapi>=1.0.0, no need to stay in the stoneage
+
 ## [1.4.6] - 2022-03-06
 ### Fixed
 - playing from local media (thanks, [koying](https://github.com/koying))
