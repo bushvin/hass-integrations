@@ -657,13 +657,15 @@ class MopidyMediaPlayerEntity(MediaPlayerEntity):
             media_type = spotify.resolve_spotify_media_type(media_type)
             media_id = spotify.spotify_uri_from_media_browser_url(media_id)
             media_uris = [media_id]
-        elif media_type == MEDIA_TYPE_PLAYLIST:
+        elif media_type == MEDIA_CLASS_PLAYLIST:
             playlist = self.client.playlists.lookup(media_id)
             self._currentplaylist = playlist.name
             if media_id.partition(":")[0] == "m3u":
                 media_uris = [t.uri for t in playlist.tracks]
             else:
                 media_uris = [media_id]
+        elif media_type == MEDIA_CLASS_DIRECTORY:
+            media_uris = [ el.uri for el in self.client.library.browse(media_id) ]
         else:
             media_uris = [media_id]
 

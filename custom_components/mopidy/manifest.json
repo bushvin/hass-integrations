@@ -7,9 +7,9 @@
     "documentation": "https://github.com/bushvin/hass-integrations#mopidy",
     "name": "Mopidy",
     "requirements": [
-        "mopidyapi==1.0.0"
+        "mopidyapi>=1.0.0"
     ],
-    "version": "1.4.6",
+    "version": "1.4.7",
     "zeroconf": [
         {
             "type": "_mopidy-http._tcp.local."
