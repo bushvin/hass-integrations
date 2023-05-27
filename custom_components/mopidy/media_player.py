@@ -663,7 +663,9 @@ class MopidyMediaPlayerEntity(MediaPlayerEntity):
             if media_id.partition(":")[0] == "m3u":
                 media_uris = [t.uri for t in playlist.tracks]
             else:
-                media_uris = [media_id]
+                media_uris = []
+                for track in self.client.library.browse(uri=media_id):
+                    media_uris.append(track.uri)
         elif media_type == MEDIA_CLASS_DIRECTORY:
             media_uris = [ el.uri for el in self.client.library.browse(media_id) ]
         else:
