@@ -9,7 +9,7 @@
     "requirements": [
         "mopidyapi>=1.0.0"
     ],
-    "version": "1.4.9",
+    "version": "1.5.0",
     "zeroconf": [
         {
             "type": "_mopidy-http._tcp.local."
