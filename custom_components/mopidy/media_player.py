@@ -749,7 +749,7 @@ class MopidyMediaPlayerEntity(MediaPlayerEntity):
     def device_info(self):
         """Return device information about this entity."""
         return {
-            "indentifiers": {(DOMAIN, self.device_name)},
+            "identifiers": {(DOMAIN, self.device_name)},
             "manufacturer": "Mopidy",
             "model": f"Mopidy server {self.server_version}",
             "name": self.device_name,
