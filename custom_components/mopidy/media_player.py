@@ -2,6 +2,7 @@
 import asyncio
 import logging
 import re
+import time
 
 from mopidyapi import MopidyAPI
 from requests.exceptions import ConnectionError as reConnectionError
@@ -412,14 +413,10 @@ class MopidyMediaPlayerEntity(MediaPlayerEntity):
         self.clear_playlist()
         self.client.tracklist.add(uris=self._snapshot["tracklist"])
 
+        self.set_volume_level(self._snapshot["volume"])
+        self.mute_volume(self._snapshot["muted"])
         if self._snapshot["state"] == STATE_OFF:
             self.turn_off()
-            self.set_volume_level(self._snapshot["volume"])
-            self.mute_volume(self._snapshot["muted"])
-            self.set_repeat(self._snapshot["repeat_mode"])
-            self.set_shuffle(self._snapshot["shuffled"])
-
-            self._snapshot = None
 
         elif self._snapshot["state"] in [STATE_PLAYING, STATE_PAUSED]:
             self.client.playback.play(
@@ -430,26 +427,28 @@ class MopidyMediaPlayerEntity(MediaPlayerEntity):
                     "tlid",
                 )
             )
-            self.restore_onplay()
+            count = 0
+            while True:
+                state = self.client.playback.get_state()
+                if state in [STATE_PLAYING, STATE_PAUSED]:
+                    break
+                if count >= 120:
+                    _LOGGER.error("media player is not playing after 60 seconds. Restoring the snapshot failed")
+                    self._snapshot = None
+                    return
+                count = count +1
+                time.sleep(.5)
 
-    async def restore_onplay(self):
-        if self.client.playback.get_state() == "playing":
-            _LOGGER.info("Finally, the player is playing")
             if self._snapshot["mediaposition"] > 0:
                 self.media_seek(self._snapshot["mediaposition"])
 
             if self._snapshot["state"] == STATE_PAUSED:
                 self.media_pause()
 
-            self.set_volume_level(self._snapshot["volume"])
-            self.mute_volume(self._snapshot["muted"])
-            self.set_repeat(self._snapshot["repeat_mode"])
-            self.set_shuffle(self._snapshot["shuffled"])
+        self.set_repeat(self._snapshot["repeat_mode"])
+        self.set_shuffle(self._snapshot["shuffled"])
 
-            self._snapshot = None
-        else:
-            _LOGGER.info("waiting for player to actually start playing")
-            await asyncio.sleep(1)
+        self._snapshot = None
 
     @property
     def unique_id(self):
