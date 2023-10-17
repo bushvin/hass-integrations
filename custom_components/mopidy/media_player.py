@@ -795,7 +795,7 @@ class MopidyMediaPlayerEntity(MediaPlayerEntity):
                 self.hostname,
                 self.port,
             )
-            _LOGGER.error(error)
+            _LOGGER.debug(error)
             self._available = False
             return
         self._available = True
