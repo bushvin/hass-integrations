@@ -2,6 +2,7 @@
 import asyncio
 import logging
 import re
+import time
 
 from mopidyapi import MopidyAPI
 from requests.exceptions import ConnectionError as reConnectionError
@@ -80,6 +81,7 @@ from .const import (
     SERVICE_RESTORE,
     SERVICE_SEARCH,
     SERVICE_SNAPSHOT,
+    SERVICE_SET_CONSUME_MODE,
 )
 
 SUPPORT_MOPIDY = (
@@ -170,7 +172,11 @@ async def async_setup_entry(
         "search",
     )
     platform.async_register_entity_service(SERVICE_SNAPSHOT, {}, "snapshot")
-
+    platform.async_register_entity_service(
+        SERVICE_SET_CONSUME_MODE,
+        {vol.Required("consume_mode", default=False): cv.boolean},
+        "set_consume_mode",
+    )
 
 async def async_setup_platform(
     hass: HomeAssistant, config: ConfigEntry, async_add_entities, discover_info=None
@@ -203,6 +209,7 @@ class MopidyMediaPlayerEntity(MediaPlayerEntity):
         self.player_streamttile = None
         self.player_currenttrach_source = None
 
+        self._consume_mode = None
         self._media_position = None
         self._media_position_updated_at = None
         self._state = STATE_UNKNOWN
@@ -232,6 +239,7 @@ class MopidyMediaPlayerEntity(MediaPlayerEntity):
         self.player_streamttile = None
         self.player_currenttrach_source = None
 
+        self._consume_mode = None
         self._media_position = None
         self._media_position_updated_at = None
         self._state = STATE_UNKNOWN
@@ -272,6 +280,7 @@ class MopidyMediaPlayerEntity(MediaPlayerEntity):
         else:
             self.player_currenttrach_source = None
 
+        self._consume_mode = self.client.tracklist.get_consume()
         media_position = int(self.client.playback.get_time_position() / 1000)
         if media_position != self._media_position:
             self._media_position = media_position
@@ -373,6 +382,15 @@ class MopidyMediaPlayerEntity(MediaPlayerEntity):
 
         self.client.tracklist.add(uris=track_uris)
 
+    def set_consume_mode(self, **kwargs):
+        """Set/Unset Consume mode"""
+        consume_mode = kwargs.get("consume_mode", False)
+        _LOGGER.debug("Set Consume Mode for %s to %s " % (self.device_name, consume_mode))
+
+        self._fetch_status()
+        if consume_mode != self._consume_mode:
+            self.client.tracklist.set_consume(consume_mode)
+
     def snapshot(self):
         """Make a snapshot of Mopidy Server."""
         self._fetch_status()
@@ -395,14 +413,10 @@ class MopidyMediaPlayerEntity(MediaPlayerEntity):
         self.clear_playlist()
         self.client.tracklist.add(uris=self._snapshot["tracklist"])
 
+        self.set_volume_level(self._snapshot["volume"])
+        self.mute_volume(self._snapshot["muted"])
         if self._snapshot["state"] == STATE_OFF:
             self.turn_off()
-            self.set_volume_level(self._snapshot["volume"])
-            self.mute_volume(self._snapshot["muted"])
-            self.set_repeat(self._snapshot["repeat_mode"])
-            self.set_shuffle(self._snapshot["shuffled"])
-
-            self._snapshot = None
 
         elif self._snapshot["state"] in [STATE_PLAYING, STATE_PAUSED]:
             self.client.playback.play(
@@ -413,26 +427,28 @@ class MopidyMediaPlayerEntity(MediaPlayerEntity):
                     "tlid",
                 )
             )
-            self.restore_onplay()
+            count = 0
+            while True:
+                state = self.client.playback.get_state()
+                if state in [STATE_PLAYING, STATE_PAUSED]:
+                    break
+                if count >= 120:
+                    _LOGGER.error("media player is not playing after 60 seconds. Restoring the snapshot failed")
+                    self._snapshot = None
+                    return
+                count = count +1
+                time.sleep(.5)
 
-    async def restore_onplay(self):
-        if self.client.playback.get_state() == "playing":
-            _LOGGER.info("Finally, the player is playing")
             if self._snapshot["mediaposition"] > 0:
                 self.media_seek(self._snapshot["mediaposition"])
 
             if self._snapshot["state"] == STATE_PAUSED:
                 self.media_pause()
 
-            self.set_volume_level(self._snapshot["volume"])
-            self.mute_volume(self._snapshot["muted"])
-            self.set_repeat(self._snapshot["repeat_mode"])
-            self.set_shuffle(self._snapshot["shuffled"])
+        self.set_repeat(self._snapshot["repeat_mode"])
+        self.set_shuffle(self._snapshot["shuffled"])
 
-            self._snapshot = None
-        else:
-            _LOGGER.info("waiting for player to actually start playing")
-            await asyncio.sleep(1)
+        self._snapshot = None
 
     @property
     def unique_id(self):
@@ -778,7 +794,7 @@ class MopidyMediaPlayerEntity(MediaPlayerEntity):
                 self.hostname,
                 self.port,
             )
-            _LOGGER.error(error)
+            _LOGGER.debug(error)
             self._available = False
             return
         self._available = True
