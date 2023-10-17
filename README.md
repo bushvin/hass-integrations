@@ -79,7 +79,7 @@ Search media based on keywords and add them to the queue. This service does not 
 
 |Service data attribute|Optional|Description|Example|
 |-|-|-|-|
-|`entity_id`|no|String or list of `entity_id`s ito take a snapshot of.| |
+|`entity_id`|no|String or list of `entity_id`s to take a snapshot of.| |
 |`exact`|yes|String. Should the search be an exact match|false|
 |`keyword`|yes|String. The keywords to search for. Will search all track fields.|Everlong|
 |`keyword_album`|yes|String. The keywords to search for in album titles.|From Mars to Sirius|
@@ -88,6 +88,14 @@ Search media based on keywords and add them to the queue. This service does not 
 |`keyword_track_name`|yes|String. The keywords to search for in track names.|Lazarus|
 |`source`|yes|String. URI sources to search. `local`, `spotify` and `tunein` are the only supported options. Make sure to have these extensions enabled on your Mopidy Server! Separate multiple sources with a comma (,).|local,spotify|
 
+#### Service mopidy.set_consume_mode
+Set or unset the mopidy player in consume mode. When in consume mode, played tracks will be removed from the queue ([TracklistController.set_consume](https://docs.mopidy.com/en/latest/api/core/#mopidy.core.TracklistController.set_consume))
+
+|Service data attribute|Optional|Description|Example|
+|-|-|-|-|
+|`entity_id`|no|String or list of `entity_id`s to take a snapshot of.||
+|`consume_mode`|no|Boolean to control consume mode|`true`|
+
 #### Service mopidy.snapshot
 Take a snapshot of what is currently playing on one or more Mopidy Servers. This service, and the following one, are useful if you want to play a doorbell or notification sound and resume playback afterwards.
 
@@ -95,12 +103,12 @@ Take a snapshot of what is currently playing on one or more Mopidy Servers. This
 
 |Service data attribute|Optional|Description|
 |-|-|-|
-|`entity_id`|no|String or list of `entity_id`s ito take a snapshot of.|
+|`entity_id`|no|String or list of `entity_id`s to take a snapshot of.|
 
 
 ### Notes
 Due to the nature of the way Mopidy provides thumbnails of the media,
-proxying them through Home Assistant is very resource intensive, 
+proxying them through Home Assistant is very resource intensive,
 causing delays. Therefore, I have decided to not proxy the art when
 using the Media Library for the time being.
 
