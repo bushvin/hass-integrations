@@ -80,6 +80,7 @@ from .const import (
     SERVICE_RESTORE,
     SERVICE_SEARCH,
     SERVICE_SNAPSHOT,
+    SERVICE_SET_CONSUME_MODE,
 )
 
 SUPPORT_MOPIDY = (
@@ -170,7 +171,11 @@ async def async_setup_entry(
         "search",
     )
     platform.async_register_entity_service(SERVICE_SNAPSHOT, {}, "snapshot")
-
+    platform.async_register_entity_service(
+        SERVICE_SET_CONSUME_MODE,
+        {vol.Required("consume_mode", default=False): cv.boolean},
+        "set_consume_mode",
+    )
 
 async def async_setup_platform(
     hass: HomeAssistant, config: ConfigEntry, async_add_entities, discover_info=None
@@ -203,6 +208,7 @@ class MopidyMediaPlayerEntity(MediaPlayerEntity):
         self.player_streamttile = None
         self.player_currenttrach_source = None
 
+        self._consume_mode = None
         self._media_position = None
         self._media_position_updated_at = None
         self._state = STATE_UNKNOWN
@@ -232,6 +238,7 @@ class MopidyMediaPlayerEntity(MediaPlayerEntity):
         self.player_streamttile = None
         self.player_currenttrach_source = None
 
+        self._consume_mode = None
         self._media_position = None
         self._media_position_updated_at = None
         self._state = STATE_UNKNOWN
@@ -272,6 +279,7 @@ class MopidyMediaPlayerEntity(MediaPlayerEntity):
         else:
             self.player_currenttrach_source = None
 
+        self._consume_mode = self.client.tracklist.get_consume()
         media_position = int(self.client.playback.get_time_position() / 1000)
         if media_position != self._media_position:
             self._media_position = media_position
@@ -372,6 +380,15 @@ class MopidyMediaPlayerEntity(MediaPlayerEntity):
             return
 
         self.client.tracklist.add(uris=track_uris)
+
+    def set_consume_mode(self, **kwargs):
+        """Set/Unset Consume mode"""
+        consume_mode = kwargs.get("consume_mode", False)
+        _LOGGER.debug("Set Consume Mode for %s to %s " % (self.device_name, consume_mode))
+
+        self._fetch_status()
+        if consume_mode != self._consume_mode:
+            self.client.tracklist.set_consume(consume_mode)
 
     def snapshot(self):
         """Make a snapshot of Mopidy Server."""

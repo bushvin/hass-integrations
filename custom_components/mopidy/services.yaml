@@ -71,3 +71,22 @@ search:
       example: "local,spotify"
       selector:
         text:
+
+set_consume_mode:
+  name: 'Set the mopidy consume mode'
+  description:
+    Set/Unset the consume mode in mopidy. Setting this will remove tracks from the tracklist
+    when they have been played
+  target:
+    entity:
+      integration: mopidy
+      domain: media_player
+  fields:
+    consume_mode:
+      name: Set or unset the consume mode
+      description: Set the Consume mode.
+      example: "false"
+      required: true
+      default: false
+      selector:
+        boolean:
