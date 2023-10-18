@@ -13,47 +13,16 @@ from homeassistant.components import media_source, spotify
 from homeassistant.components.media_player import (
     PLATFORM_SCHEMA,
     BrowseMedia,
+    MediaClass,
+    MediaPlayerDeviceClass,
     MediaPlayerEntity,
+    MediaPlayerEntityFeature,
+    MediaPlayerState,
+    MediaType,
+    RepeatMode,
     async_process_play_media_url,
 )
-from homeassistant.components.media_player.const import (
-    MEDIA_CLASS_ALBUM,
-    MEDIA_CLASS_ARTIST,
-    MEDIA_CLASS_APP,
-    MEDIA_CLASS_COMPOSER,
-    MEDIA_CLASS_DIRECTORY,
-    MEDIA_CLASS_GENRE,
-    MEDIA_CLASS_MUSIC,
-    MEDIA_CLASS_PLAYLIST,
-    MEDIA_CLASS_PODCAST,
-    MEDIA_CLASS_TRACK,
-    MEDIA_TYPE_ALBUM,
-    MEDIA_TYPE_ARTIST,
-    MEDIA_TYPE_EPISODE,
-    MEDIA_TYPE_MUSIC,
-    MEDIA_TYPE_PLAYLIST,
-    MEDIA_TYPE_TRACK,
-    REPEAT_MODE_ALL,
-    REPEAT_MODE_OFF,
-    REPEAT_MODE_ONE,
-    SUPPORT_BROWSE_MEDIA,
-    SUPPORT_CLEAR_PLAYLIST,
-    SUPPORT_NEXT_TRACK,
-    SUPPORT_PAUSE,
-    SUPPORT_PLAY,
-    SUPPORT_PLAY_MEDIA,
-    SUPPORT_PREVIOUS_TRACK,
-    SUPPORT_REPEAT_SET,
-    SUPPORT_SEEK,
-    SUPPORT_SELECT_SOURCE,
-    SUPPORT_SHUFFLE_SET,
-    SUPPORT_STOP,
-    SUPPORT_TURN_OFF,
-    SUPPORT_TURN_ON,
-    SUPPORT_VOLUME_MUTE,
-    SUPPORT_VOLUME_SET,
-    SUPPORT_VOLUME_STEP,
-)
+
 from homeassistant.components.media_player.errors import BrowseError
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import (
@@ -61,9 +30,6 @@ from homeassistant.const import (
     CONF_ID,
     CONF_NAME,
     CONF_PORT,
-    STATE_OFF,
-    STATE_PAUSED,
-    STATE_PLAYING,
     STATE_UNAVAILABLE,
     STATE_UNKNOWN,
 )
@@ -84,43 +50,22 @@ from .const import (
     SERVICE_SET_CONSUME_MODE,
 )
 
-SUPPORT_MOPIDY = (
-    SUPPORT_BROWSE_MEDIA
-    | SUPPORT_CLEAR_PLAYLIST
-    | SUPPORT_NEXT_TRACK
-    | SUPPORT_PAUSE
-    | SUPPORT_PLAY
-    | SUPPORT_PLAY_MEDIA
-    | SUPPORT_PREVIOUS_TRACK
-    | SUPPORT_REPEAT_SET
-    | SUPPORT_SHUFFLE_SET
-    | SUPPORT_SEEK
-    | SUPPORT_STOP
-    | SUPPORT_TURN_OFF
-    | SUPPORT_TURN_ON
-    | SUPPORT_SELECT_SOURCE
-)
-
-MEDIA_TYPE_SHOW = "show"
-
 PLAYABLE_MEDIA_TYPES = [
-    MEDIA_TYPE_PLAYLIST,
-    MEDIA_TYPE_ALBUM,
-    MEDIA_TYPE_ARTIST,
-    MEDIA_TYPE_EPISODE,
-    MEDIA_TYPE_SHOW,
-    MEDIA_TYPE_TRACK,
+    MediaType.ALBUM,
+    MediaType.ARTIST,
+    MediaType.EPISODE,
+    MediaType.TRACK,
 ]
 
 EXPANDABLE_MEDIA_TYPES = [
-    MEDIA_CLASS_ALBUM,
-    MEDIA_CLASS_ARTIST,
-    MEDIA_CLASS_COMPOSER,
-    MEDIA_CLASS_DIRECTORY,
-    MEDIA_CLASS_GENRE,
-    MEDIA_CLASS_MUSIC,
-    MEDIA_CLASS_PLAYLIST,
-    MEDIA_CLASS_PODCAST,
+    MediaClass.ALBUM,
+    MediaClass.ARTIST,
+    MediaClass.COMPOSER,
+    MediaClass.DIRECTORY,
+    MediaClass.GENRE,
+    MediaClass.MUSIC,
+    MediaClass.PLAYLIST,
+    MediaClass.PODCAST,
 ]
 
 _LOGGER = logging.getLogger(__name__)
@@ -192,6 +137,28 @@ async def async_setup_platform(
 
 class MopidyMediaPlayerEntity(MediaPlayerEntity):
     """Representation of the Mopidy server."""
+
+    _attr_name = None
+    _attr_supported_features = (
+        MediaPlayerEntityFeature.BROWSE_MEDIA
+        | MediaPlayerEntityFeature.CLEAR_PLAYLIST
+        | MediaPlayerEntityFeature.NEXT_TRACK
+        | MediaPlayerEntityFeature.PAUSE
+        | MediaPlayerEntityFeature.PLAY
+        | MediaPlayerEntityFeature.PLAY_MEDIA
+        | MediaPlayerEntityFeature.PREVIOUS_TRACK
+        | MediaPlayerEntityFeature.REPEAT_SET
+        | MediaPlayerEntityFeature.SHUFFLE_SET
+        | MediaPlayerEntityFeature.SEEK
+        | MediaPlayerEntityFeature.STOP
+        | MediaPlayerEntityFeature.TURN_OFF
+        | MediaPlayerEntityFeature.TURN_ON
+        | MediaPlayerEntityFeature.SELECT_SOURCE
+        | MediaPlayerEntityFeature.VOLUME_MUTE
+        | MediaPlayerEntityFeature.VOLUME_SET
+    )
+    _attr_media_content_type = MediaType.MUSIC
+    _attr_device_class = MediaPlayerDeviceClass.SPEAKER
 
     def __init__(self, hostname, port, name, uuid=None):
         """Initialize the Mopidy device."""
@@ -290,11 +257,11 @@ class MopidyMediaPlayerEntity(MediaPlayerEntity):
         if state is None:
             self._state = STATE_UNAVAILABLE
         elif state == "playing":
-            self._state = STATE_PLAYING
+            self._state = MediaPlayerState.PLAYING
         elif state == "paused":
-            self._state = STATE_PAUSED
+            self._state = MediaPlayerState.PAUSED
         elif state == "stopped":
-            self._state = STATE_OFF
+            self._state = MediaPlayerState.OFF
         else:
             self._state = STATE_UNKNOWN
 
@@ -328,11 +295,11 @@ class MopidyMediaPlayerEntity(MediaPlayerEntity):
         repeat = self.client.tracklist.get_repeat()
         single = self.client.tracklist.get_single()
         if repeat and single:
-            self._repeat_mode = REPEAT_MODE_ONE
+            self._repeat_mode = RepeatMode.ONE
         elif repeat:
-            self._repeat_mode = REPEAT_MODE_ALL
+            self._repeat_mode = RepeatMode.ALL
         else:
-            self._repeat_mode = REPEAT_MODE_OFF
+            self._repeat_mode = RepeatMode.OFF
 
         self._tracklist_tracks = [t.uri for t in self.client.tracklist.get_tracks()]
         self._tracklist_index = self.client.tracklist.index()
@@ -415,10 +382,10 @@ class MopidyMediaPlayerEntity(MediaPlayerEntity):
 
         self.set_volume_level(self._snapshot["volume"])
         self.mute_volume(self._snapshot["muted"])
-        if self._snapshot["state"] == STATE_OFF:
+        if self._snapshot["state"] == MediaPlayerState.OFF:
             self.turn_off()
 
-        elif self._snapshot["state"] in [STATE_PLAYING, STATE_PAUSED]:
+        elif self._snapshot["state"] in [MediaPlayerState.PLAYING, MediaPlayerState.PAUSED]:
             self.client.playback.play(
                 tlid=getattr(
                     self.client.tracklist.get_tl_tracks()[
@@ -430,7 +397,7 @@ class MopidyMediaPlayerEntity(MediaPlayerEntity):
             count = 0
             while True:
                 state = self.client.playback.get_state()
-                if state in [STATE_PLAYING, STATE_PAUSED]:
+                if state in [MediaPlayerState.PLAYING, MediaPlayerState.PAUSED]:
                     break
                 if count >= 120:
                     _LOGGER.error("media player is not playing after 60 seconds. Restoring the snapshot failed")
@@ -442,7 +409,7 @@ class MopidyMediaPlayerEntity(MediaPlayerEntity):
             if self._snapshot["mediaposition"] > 0:
                 self.media_seek(self._snapshot["mediaposition"])
 
-            if self._snapshot["state"] == STATE_PAUSED:
+            if self._snapshot["state"] == MediaPlayerState.PAUSED:
                 self.media_pause()
 
         self.set_repeat(self._snapshot["repeat_mode"])
@@ -491,11 +458,6 @@ class MopidyMediaPlayerEntity(MediaPlayerEntity):
         if hasattr(self.player_currenttrack, "uri"):
             return self.player_currenttrack.uri
         return None
-
-    @property
-    def media_content_type(self):
-        """Content type of current playing media."""
-        return MEDIA_TYPE_MUSIC
 
     @property
     def media_duration(self):
@@ -591,15 +553,15 @@ class MopidyMediaPlayerEntity(MediaPlayerEntity):
         """Return current repeat mode."""
         return self._repeat_mode
 
-    @property
-    def supported_features(self):
-        """Flag media player features that are supported."""
-        support = SUPPORT_MOPIDY
-        if self._has_support_volume:
-            support = (
-                support | SUPPORT_VOLUME_MUTE | SUPPORT_VOLUME_SET | SUPPORT_VOLUME_STEP
-            )
-        return support
+    # @property
+    # def supported_features(self):
+    #     """Flag media player features that are supported."""
+    #     support = SUPPORT_MOPIDY
+    #     if self._has_support_volume:
+    #         support = (
+    #             support | SUPPORT_VOLUME_MUTE | SUPPORT_VOLUME_SET | SUPPORT_VOLUME_STEP
+    #         )
+    #     return support
 
     @property
     def source(self):
@@ -730,10 +692,10 @@ class MopidyMediaPlayerEntity(MediaPlayerEntity):
 
     def set_repeat(self, repeat):
         """Set repeat mode."""
-        if repeat == REPEAT_MODE_ALL:
+        if repeat == RepeatMode.ALL:
             self.client.tracklist.set_repeat(True)
             self.client.tracklist.set_single(False)
-        elif repeat == REPEAT_MODE_ONE:
+        elif repeat == RepeatMode.ONE:
             self.client.tracklist.set_repeat(True)
             self.client.tracklist.set_single(True)
         else:
@@ -755,11 +717,6 @@ class MopidyMediaPlayerEntity(MediaPlayerEntity):
             new_volume = 0
 
         self.client.mixer.set_volume(new_volume)
-
-    @property
-    def device_class(self):
-        """Return the device class."""
-        return "speaker"
 
     @property
     def device_info(self):
