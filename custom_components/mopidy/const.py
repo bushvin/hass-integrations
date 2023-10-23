@@ -1,7 +1,7 @@
 """Constants for the Mopidy integration."""
 
 DOMAIN = "mopidy"
-ICON = "mdi:music-note"
+ICON = "mdi:speaker-wireless"
 DEFAULT_NAME = "Mopidy"
 DEFAULT_PORT = 6680
 SERVICE_SET_CONSUME_MODE = "set_consume_mode"
