@@ -4,9 +4,7 @@ import logging
 import datetime
 import time
 from mopidyapi import MopidyAPI
-from mopidyapi.exceptions import MopidyError
 
-from functools import partial
 from homeassistant.components import media_source, spotify
 from homeassistant.core import HomeAssistant
 from homeassistant.components.media_player import (
@@ -21,7 +19,7 @@ from homeassistant.components.media_player import (
 )
 from homeassistant.components.media_player.errors import BrowseError
 import homeassistant.util.dt as dt_util
-from requests.exceptions import ConnectionError
+from requests.exceptions import ConnectionError as reConnectionError
 
 from .const import (
     DEFAULT_PORT,
@@ -37,11 +35,6 @@ class MopidyLibrary:
 
     api: MopidyAPI | None = None
     _attr_supported_uri_schemes: list | None = None
-
-    def __init__(self):
-        #self.api = api
-        a = 1
-        #self._attr_supported_uri_schemes = self.api.rpc_call("core.get_uri_schemes")
 
     def browse(self, uri=None):
         """Wrapper for the MopidyAPI.library.browse method"""
@@ -166,7 +159,7 @@ class MopidyMedia:
 
         try:
             current_track = self.api.playback.get_current_track()
-        except ConnectionError as error:
+        except reConnectionError as error:
             _LOGGER.error(
                 "Cannot get current track information"
             )
@@ -174,7 +167,7 @@ class MopidyMedia:
 
         try:
             current_stream_title = self.api.playback.get_stream_title()
-        except ConnectionError as error:
+        except reConnectionError as error:
             _LOGGER.error(
                 "Cannot get current stream title"
             )
@@ -182,7 +175,7 @@ class MopidyMedia:
 
         try:
             current_media_position = self.api.playback.get_time_position()
-        except ConnectionError as error:
+        except reConnectionError as error:
             _LOGGER.error(
                 "Cannot get current position"
             )
@@ -198,7 +191,7 @@ class MopidyMedia:
                 current_image = self.api.library.get_images([self.uri])
             else:
                 current_image = None
-        except ConnectionError as error:
+        except reConnectionError as error:
             _LOGGER.error(
                 "Cannot get image for media"
             )
@@ -412,7 +405,7 @@ class MopidySpeaker:
         try:
             self.api.rpc_call("core.get_version")
             self._attr_is_available = True
-        except ConnectionError as error:
+        except reConnectionError as error:
             _LOGGER.error(
                 "An error ocurred connecting to %s of port %s.",
                 self.hostname,
