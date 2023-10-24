@@ -114,17 +114,18 @@ class MopidyMedia:
     api: MopidyAPI | None = None
 
     _attr_local_url_base: str | None = None
-    _attr_current_track_uri: str | None = None
-    _attr_current_track_source: str | None = None
-    _attr_current_track_number: int | None = None
-    _attr_current_track_duration: int | None = None
-    _attr_current_media_title: str | None = None
-    _attr_current_media_artist: str | None = None
-    _attr_current_media_position: int | None = None
-    _attr_current_media_position_updated_at: datetime.datetime | None = None
-    _attr_current_album_name: str | None = None
-    _attr_current_album_artist: str | None = None
-    _attr_current_playlist_name: str | None = None
+    _attr_track_uri: str | None = None
+    _attr_track_source: str | None = None
+    _attr_track_number: int | None = None
+    _attr_track_duration: int | None = None
+    _attr_media_title: str | None = None
+    _attr_media_artist: str | None = None
+    _attr_media_position: int | None = None
+    _attr_media_position_updated_at: datetime.datetime | None = None
+    _attr_album_name: str | None = None
+    _attr_album_artist: str | None = None
+    _attr_playlist_name: str | None = None
+    _playlist_track_uris: list | None = None
     _attr_media_image_url: str | None = None
     _attr_is_stream: bool | None = None
     _attr_extension: str | None = None
@@ -133,16 +134,16 @@ class MopidyMedia:
         self.clear()
 
     def clear(self):
-        self._attr_current_track_uri = None
-        self._attr_current_track_source = None
-        self._attr_current_track_number = None
-        self._attr_current_track_duration = None
-        self._attr_current_media_title = None
-        self._attr_current_media_artist = None
-        self._attr_current_album_name = None
-        self._attr_current_album_artist = None
-        self._attr_current_media_position = None
-        self._attr_current_media_position_updated_at = None
+        self._attr_track_uri = None
+        self._attr_track_source = None
+        self._attr_track_number = None
+        self._attr_track_duration = None
+        self._attr_media_title = None
+        self._attr_media_artist = None
+        self._attr_album_name = None
+        self._attr_album_artist = None
+        self._attr_media_position = None
+        self._attr_media_position_updated_at = None
         self._attr_media_image_url = None
         self._attr_is_stream = False
         self._attr_extension = None
@@ -182,9 +183,9 @@ class MopidyMedia:
             _LOGGER.debug(str(error))
 
         if hasattr(current_track, "uri"):
-            self._attr_current_track_uri = current_track.uri
+            self._attr_track_uri = current_track.uri
             self._attr_extension = current_track.uri.partition(":")[0]
-            self._attr_current_track_source = current_track.uri.partition(":")[0]
+            self._attr_track_source = current_track.uri.partition(":")[0]
 
         try:
             if self.uri is not None:
@@ -198,30 +199,30 @@ class MopidyMedia:
             _LOGGER.debug(str(error))
 
         if hasattr(current_track, "track_no"):
-            self._attr_current_track_number = int(current_track.track_no)
+            self._attr_track_number = int(current_track.track_no)
 
         if hasattr(current_track, "length"):
-            self._attr_current_track_duration = int(current_track.length / 1000)
+            self._attr_track_duration = int(current_track.length / 1000)
 
         if current_stream_title is not None:
-            self._attr_current_media_title = current_stream_title
+            self._attr_media_title = current_stream_title
             self._attr_is_stream = True
             if hasattr(current_track, "name"):
-                self._attr_current_media_artist = current_track.name
+                self._attr_media_artist = current_track.name
         else:
             if hasattr(current_track, "name"):
-                self._attr_current_media_title = current_track.name
+                self._attr_media_title = current_track.name
             if hasattr(current_track, "artists"):
-                self._attr_current_media_artist = ", ".join([x.name for x in current_track.artists])
+                self._attr_media_artist = ", ".join([x.name for x in current_track.artists])
 
         if hasattr(current_track, "album") and hasattr(current_track.album, "name"):
-            self._attr_current_album_name = current_track.album.name
+            self._attr_album_name = current_track.album.name
 
         if hasattr(current_track, "artists"):
-            self._attr_current_album_artist = ", ".join([x.name for x in current_track.artists])
+            self._attr_album_artist = ", ".join([x.name for x in current_track.artists])
 
-        self._attr_current_media_position = int(current_media_position / 1000)
-        self._attr_current_media_position_updated_at = dt_util.utcnow()
+        self._attr_media_position = int(current_media_position / 1000)
+        self._attr_media_position_updated_at = dt_util.utcnow()
 
         if (
             current_image is not None
@@ -231,31 +232,41 @@ class MopidyMedia:
         ):
             self._attr_media_image_url = self.expand_url(self.source, current_image[self.uri][0].uri)
 
+
+        if self._playlist_track_uris is not None and self.uri not in self._playlist_track_uris:
+            self.clear_playlist()
+
+    def clear_playlist(self):
+        self._attr_playlist_name = None
+        self._playlist_track_uris = None
+
     def set_local_url_base(self, value):
         self._attr_local_url_base = value
 
-    def set_playlist_name(self, value):
-        self._attr_current_playlist_name = value
+    def set_playlist(self, media_id):
+        res = self.api.playlists.lookup(media_id)
+        self._attr_playlist_name = res.name
+        self._playlist_track_uris = [x.uri for x in res.tracks]
 
     @property
     def album_artist(self):
         """Return the Album artists"""
-        return self._attr_current_album_artist
+        return self._attr_album_artist
 
     @property
     def album_name(self):
         """Return the Album name"""
-        return self._attr_current_album_name
+        return self._attr_album_name
 
     @property
     def artist(self):
         """Return the current track artist(s)"""
-        return self._attr_current_media_artist
+        return self._attr_media_artist
 
     @property
     def duration(self):
         """Return the duration of the current track"""
-        return self._attr_current_track_duration
+        return self._attr_track_duration
 
     @property
     def extension(self):
@@ -283,36 +294,50 @@ class MopidyMedia:
     @property
     def playlist_name(self):
         """Return the current playlist"""
-        return self._attr_current_playlist_name
+        if self._attr_playlist_name is not None:
+            return self._attr_playlist_name
+        else:
+            return None
 
     @property
     def position(self):
         """Return the position of the playing track/stream"""
-        return self._attr_current_media_position
+        return self._attr_media_position
 
     @property
     def position_updated_at(self):
         """Return the position of the playing track/stream"""
-        return self._attr_current_media_position_updated_at
+        return self._attr_media_position_updated_at
 
     @property
     def source(self):
-        return self._attr_current_track_source
+        return self._attr_track_source
 
     @property
     def title(self):
         """Return the current track/stream title"""
-        return self._attr_current_media_title
+        return self._attr_media_title
 
     @property
     def track_number(self):
         """Return the track number"""
-        return self._attr_current_track_number
+        return self._attr_track_number
 
     @property
     def uri(self):
         """Return the URI of the current track"""
-        return self._attr_current_track_uri
+        return self._attr_track_uri
+
+# class MopidyQueue:
+#     """Mopidy doesn't provide information about the playlist a song which is being played"""
+#     api: MopidyAPI | None = None
+
+#     _queue: list | None = None
+
+#     def __init__(self):
+#         self._queue = []
+
+
 
 class MopidySpeaker:
 
@@ -374,6 +399,7 @@ class MopidySpeaker:
         self.media = MopidyMedia()
         self.media.set_local_url_base(f"http://{hostname}:{port}")
         self.library = MopidyLibrary()
+        # self.queue = MopidyQueue()
 
         self.api = MopidyAPI(
             host=self.hostname,
@@ -383,6 +409,7 @@ class MopidySpeaker:
         )
         self.media.api = self.api
         self.library.api = self.api
+        # self.queue.api = self.api
 
     def clear(self):
         """Reset all Values"""
@@ -450,6 +477,7 @@ class MopidySpeaker:
             self._attr_repeat = RepeatMode.OFF
 
         self.media.update()
+        # self.queue.update()
 
     def clear_queue(self):
         """Clear the playing queue"""
@@ -502,10 +530,14 @@ class MopidySpeaker:
         """Play the provided media"""
 
         enqueue = kwargs.get(ATTR_MEDIA_ENQUEUE, MediaPlayerEnqueue.REPLACE)
+        _LOGGER.debug("media_type: %s", media_type)
+        _LOGGER.debug("media_id: %s", media_id)
 
         media_uris = [media_id]
+        self.media.clear_playlist()
         if media_type == MediaClass.PLAYLIST:
             media_uris = self.library.get_playlist_track_uris(media_id)
+            self.media.set_playlist(media_id)
 
         if media_type == MediaClass.DIRECTORY:
             media_uris = [ x.uri for x in self.library.browse(media_id)]
