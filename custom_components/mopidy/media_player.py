@@ -6,6 +6,9 @@ import re
 import time
 from typing import Any
 
+import urllib.parse as urlparse
+from urllib.parse import parse_qs
+
 from mopidyapi import MopidyAPI
 from requests.exceptions import ConnectionError as reConnectionError
 import voluptuous as vol
@@ -304,7 +307,17 @@ class MopidyMediaPlayerEntity(MediaPlayerEntity):
         """Play provided media_id"""
 
         if media_source.is_media_source_id(media_id):
-            if "yt" in self.speaker.supported_uri_schemes:
+            if "youtube" in self.speaker.supported_uri_schemes:
+                if (
+                    uri.startswith("https://www.youtube.com/")
+                    or uri.startswith("https://youtube.com/")
+                    or uri.startswith("https://youtu.be/")
+                ):
+                    url_parsed = urlparse.urlparse(media_id)
+                    query_parsed = parse_qs(url_parsed.query)
+                    media_id = f"youtube:video:{query_parsed['v']}"
+
+            elif "yt" in self.speaker.supported_uri_schemes:
                 if (
                     uri.startswith("https://www.youtube.com/")
                     or uri.startswith("https://youtube.com/")
