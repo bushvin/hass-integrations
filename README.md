@@ -6,7 +6,7 @@ Additional integrations for [Home Assistant](https://www.home-assistant.io/)
 
 ## Mopidy
 
-![badge_version] ![badge_issues]
+![badge_version] ![badge_issues] ![badge_hacs_pipeline]
 
 This is a platform integration for [Mopidy Music Servers](https://mopidy.com/)
 
@@ -35,7 +35,7 @@ Please look at the [Mopidy installation & configuration instructions](https://do
 
 #### zeroconf
 
-Your Mopidy Servers can be detected and addedi to Home Assitant through zeroconf.
+Your Mopidy Servers can be detected and added to Home Assitant through zeroconf.
 
 #### GUI
 
@@ -133,3 +133,4 @@ using the Media Library for the time being.
 [badge_version]: https://img.shields.io/github/v/tag/bushvin/hass-integrations?label=Version&style=flat-square&color=2577a1
 [badge_issues]: https://img.shields.io/github/issues/bushvin/hass-integrations?style=flat-square
 [badge_mastodon]: https://img.shields.io/mastodon/follow/1084764?domain=https%3A%2F%2Fmastodon.social&logo=mastodon&logoColor=white&style=flat-square&label=%40bushvin%40mastodon.social
+[badge_hacs_pipeline]: https://img.shields.io/github/actions/workflow/status/bushvin/hass-integrations/validate.yml?label=HACS%20build%20validation&style=flat-square
