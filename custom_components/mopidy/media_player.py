@@ -397,7 +397,6 @@ class MopidyMediaPlayerEntity(MediaPlayerEntity):
         self._attr_shuffle = self.speaker.is_shuffled
         self._attr_repeat = self.speaker.repeat
         self._attr_supported_features = self.speaker.features
-
         self._attr_media_content_id = self.media.uri
         self._attr_media_duration = self.media.duration
         self._attr_media_image_remotely_accessible = self.media.image_remotely_accessible
