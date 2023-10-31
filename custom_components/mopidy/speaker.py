@@ -337,17 +337,6 @@ class MopidyMedia:
         """Return the URI of the current track"""
         return self._attr_track_uri
 
-# class MopidyQueue:
-#     """Mopidy doesn't provide information about the playlist a song which is being played"""
-#     api: MopidyAPI | None = None
-
-#     _queue: list | None = None
-
-#     def __init__(self):
-#         self._queue = []
-
-
-
 class MopidySpeaker:
 
     hass: HomeAssistant | None = None
@@ -408,7 +397,6 @@ class MopidySpeaker:
         self.media = MopidyMedia()
         self.media.set_local_url_base(f"http://{hostname}:{port}")
         self.library = MopidyLibrary()
-        # self.queue = MopidyQueue()
 
         self.api = MopidyAPI(
             host=self.hostname,
@@ -418,7 +406,7 @@ class MopidySpeaker:
         )
         self.media.api = self.api
         self.library.api = self.api
-        # self.queue.api = self.api
+
 
     def clear(self):
         """Reset all Values"""
@@ -449,10 +437,6 @@ class MopidySpeaker:
             )
             _LOGGER.debug(str(error))
             return
-
-        # if not self._attr_is_available:
-        #     _LOGGER.debug("Waiting for network connectivity to be established")
-        #     return
 
         self._attr_software_version = self.api.rpc_call("core.get_version")
         self._attr_supported_uri_schemes = self.api.rpc_call("core.get_uri_schemes")
@@ -486,28 +470,10 @@ class MopidySpeaker:
             self._attr_repeat = RepeatMode.OFF
 
         self.media.update()
-        # self.queue.update()
 
     def clear_queue(self):
         """Clear the playing queue"""
         self.api.tracklist.clear()
-
-    def connect(self):
-        self.api = MopidyAPI(
-            host=self.hostname,
-            port=self.port,
-            use_websocket=False,
-            logger=logging.getLogger(__name__ + ".client"),
-        )
-        _LOGGER.info(
-            "Connection to Mopidy server %s on port %d established",
-            self.hostname,
-            self.port,
-        )
-
-        self._attr_is_available = True
-        self.media.api = self.api
-        self.library.api = self.api
 
     def media_next_track(self):
         """Play next track"""
@@ -560,11 +526,7 @@ class MopidySpeaker:
             self.queue_tracks(media_uris, at_position=index+1)
 
         elif enqueue == MediaPlayerEnqueue.PLAY:
-            # tracks = self.tracklist_uris
             index = self.queue_position
-            # new_media_uris = tracks[:index] + media_uris + tracks[index+1:]
-            self.clear_queue()
-            # self.queue_tracks(new_media_uris)
             self.queue_tracks(media_uris, at_position=index)
             self.media_play(index)
 
