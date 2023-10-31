@@ -3,6 +3,28 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+## [2.0.0] - 2023-10-31
+
+This version incorporates a refactor of the integration to include numerous new
+Home Assistant `media_player` features. I did not keep track of all features updated, but these incorporate the major ones
+
+### Added
+
+- Support for `media_player.play_media` `enqueue` feature
+- `mopid.set_consume_mode` service
+- `consume_mode` entity attribute for the current consume_mode
+- `mopidy_extension` entity attribute for currently used extension
+- `queue_position` entity attribute for the index of the currently playing track in the queue
+- `queu_size` entity attribute for the number of tracks in the currently playing queue
+- `snapshot_taken_at` entity attribute to show when the snapshot was taken (if any)
+
+### Fixed
+
+- Wrong volume level on snapshot restore
+
+### Removed
+
+- Support for ON/OFF, as these refer to a physical ON/OFF switch.
 
 ## [1.4.8] - 2023-05-31
 
