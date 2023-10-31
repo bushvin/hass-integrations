@@ -4,6 +4,8 @@ import logging
 import datetime
 import time
 from mopidyapi import MopidyAPI
+import urllib.parse as urlparse
+from urllib.parse import urlencode
 
 from homeassistant.components import media_source, spotify
 from homeassistant.core import HomeAssistant
@@ -149,9 +151,16 @@ class MopidyMedia:
         self._attr_extension = None
 
     def expand_url(self, source, url):
-        if source == "local":
-            timestamp = int(time.time() * 1000)
-            return f"{self.local_url_base}{url}?t={timestamp}"
+        parsed_url = urlparse.urlparse(url)
+        if parsed_url.netloc == "":
+            url = f"{self.local_url_base}{url}"
+        query = dict(urlparse.parse_qsl(parsed_url.query))
+        if query.get("t") is None:
+            url_parts = list(urlparse.urlparse(url))
+            query["t"] = int(time.time() * 1000)
+            url_parts[4] = urlencode(query)
+            url = urlparse.urlunparse(url_parts)
+
         return url
 
     def update(self):
