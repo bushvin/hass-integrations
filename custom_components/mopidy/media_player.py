@@ -309,9 +309,9 @@ class MopidyMediaPlayerEntity(MediaPlayerEntity):
         if media_source.is_media_source_id(media_id):
             if "youtube" in self.speaker.supported_uri_schemes:
                 if (
-                    uri.startswith("https://www.youtube.com/")
-                    or uri.startswith("https://youtube.com/")
-                    or uri.startswith("https://youtu.be/")
+                    media_id.startswith("https://www.youtube.com/")
+                    or media_id.startswith("https://youtube.com/")
+                    or media_id.startswith("https://youtu.be/")
                 ):
                     url_parsed = urlparse.urlparse(media_id)
                     query_parsed = parse_qs(url_parsed.query)
@@ -319,9 +319,9 @@ class MopidyMediaPlayerEntity(MediaPlayerEntity):
 
             elif "yt" in self.speaker.supported_uri_schemes:
                 if (
-                    uri.startswith("https://www.youtube.com/")
-                    or uri.startswith("https://youtube.com/")
-                    or uri.startswith("https://youtu.be/")
+                    media_id.startswith("https://www.youtube.com/")
+                    or media_id.startswith("https://youtube.com/")
+                    or media_id.startswith("https://youtu.be/")
                 ):
                     media_id = f"yt:{media_id}"
 
