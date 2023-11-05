@@ -504,9 +504,16 @@ class MopidySpeaker:
 
     def media_play(self, index=None):
         """Play the current media"""
-        if isinstance(index, int):
-            self.api.playback.play(tlid=index)
-        else:
+        _LOGGER.debug("index: %s", index)
+        try:
+            current_tracks = self.api.tracklist.get_tl_tracks()
+            self.api.playback.play(
+                tlid=current_tracks[int(index)].tlid
+            )
+
+        except Exception as error:
+            _LOGGER.error("The specified index %s could not be resolved", index)
+            _LOGGER.debug(str(error))
             self.api.playback.play()
 
     def media_previous_track(self):
@@ -537,19 +544,24 @@ class MopidySpeaker:
             media_uris = [ x.uri for x in self.library.browse(media_id)]
 
         if enqueue == MediaPlayerEnqueue.ADD:
+            # Add media uris to end of the queue
             self.queue_tracks(media_uris)
             self.media_play()
 
         elif enqueue == MediaPlayerEnqueue.NEXT:
+            # Add media uris to queue after current playing track
             index = self.queue_position
             self.queue_tracks(media_uris, at_position=index+1)
 
         elif enqueue == MediaPlayerEnqueue.PLAY:
+            # Insert media uris before current playing track into queue and play first of new uris
             index = self.queue_position
             self.queue_tracks(media_uris, at_position=index)
             self.media_play(index)
 
         elif enqueue == MediaPlayerEnqueue.REPLACE:
+            # clear queue and replace with media uris
+            self.media_stop()
             self.clear_queue()
             self.queue_tracks(media_uris)
             self.media_play()
@@ -562,6 +574,9 @@ class MopidySpeaker:
         """Queue tracks"""
         if len(uris) > 0:
             self.api.tracklist.add(uris=uris, at_position=at_position)
+            # NOTE: Is this needed if we perform async updates?
+            self._attr_tracklist = self.api.tracklist.get_tracks()
+            self._attr_queue_position = self.api.tracklist.index()
 
     def restore_snapshot(self):
         """Restore a snapshot"""
