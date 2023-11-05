@@ -337,17 +337,6 @@ class MopidyMedia:
         """Return the URI of the current track"""
         return self._attr_track_uri
 
-# class MopidyQueue:
-#     """Mopidy doesn't provide information about the playlist a song which is being played"""
-#     api: MopidyAPI | None = None
-
-#     _queue: list | None = None
-
-#     def __init__(self):
-#         self._queue = []
-
-
-
 class MopidySpeaker:
 
     hass: HomeAssistant | None = None
@@ -450,10 +439,6 @@ class MopidySpeaker:
             _LOGGER.debug(str(error))
             return
 
-        # if not self._attr_is_available:
-        #     _LOGGER.debug("Waiting for network connectivity to be established")
-        #     return
-
         self._attr_software_version = self.api.rpc_call("core.get_version")
         self._attr_supported_uri_schemes = self.api.rpc_call("core.get_uri_schemes")
         self._attr_consume_mode = self.api.tracklist.get_consume()
@@ -519,9 +504,17 @@ class MopidySpeaker:
 
     def media_play(self, index=None):
         """Play the current media"""
-        if isinstance(index, int):
-            self.api.playback.play(tlid=index)
-        else:
+        _LOGGER.debug("index: %s", index)
+        try:
+            int(index)
+            current_tracks = self.api.tracklist.get_tl_tracks()
+            self.api.playback.play(
+                tlid=current_tracks[index].tlid
+            )
+
+        except Exception as error:
+            _LOGGER.error("The specified index %s could not be resolved", index)
+            _LOGGER.debug(str(error))
             self.api.playback.play()
 
     def media_previous_track(self):
@@ -552,23 +545,24 @@ class MopidySpeaker:
             media_uris = [ x.uri for x in self.library.browse(media_id)]
 
         if enqueue == MediaPlayerEnqueue.ADD:
+            # Add media uris to end of the queue
             self.queue_tracks(media_uris)
             self.media_play()
 
         elif enqueue == MediaPlayerEnqueue.NEXT:
+            # Add media uris to queue after current playing track
             index = self.queue_position
             self.queue_tracks(media_uris, at_position=index+1)
 
         elif enqueue == MediaPlayerEnqueue.PLAY:
-            # tracks = self.tracklist_uris
+            # Insert media uris before current playing track into queue and play first of new uris
             index = self.queue_position
-            # new_media_uris = tracks[:index] + media_uris + tracks[index+1:]
-            self.clear_queue()
-            # self.queue_tracks(new_media_uris)
             self.queue_tracks(media_uris, at_position=index)
             self.media_play(index)
 
         elif enqueue == MediaPlayerEnqueue.REPLACE:
+            # clear queue and replace with media uris
+            self.media_stop()
             self.clear_queue()
             self.queue_tracks(media_uris)
             self.media_play()
@@ -581,6 +575,8 @@ class MopidySpeaker:
         """Queue tracks"""
         if len(uris) > 0:
             self.api.tracklist.add(uris=uris, at_position=at_position)
+            self._attr_tracklist = self.api.tracklist.get_tracks()
+            self._attr_queue_position = self.api.tracklist.index()
 
     def restore_snapshot(self):
         """Restore a snapshot"""
