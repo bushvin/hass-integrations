@@ -8,7 +8,7 @@ import urllib.parse as urlparse
 from urllib.parse import urlencode
 
 from homeassistant.components import media_source, spotify
-from homeassistant.core import HomeAssistant
+from homeassistant.core import HomeAssistant, callback
 from homeassistant.components.media_player import (
     ATTR_MEDIA_ENQUEUE,
     async_process_play_media_url,
@@ -398,15 +398,10 @@ class MopidySpeaker:
         self.media.set_local_url_base(f"http://{hostname}:{port}")
         self.library = MopidyLibrary()
 
-        self.api = MopidyAPI(
-            host=self.hostname,
-            port=self.port,
-            use_websocket=False,
-            logger=logging.getLogger(__name__ + ".api"),
-        )
+        self.connect()
+        self.entity = None
         self.media.api = self.api
         self.library.api = self.api
-
 
     def clear(self):
         """Reset all Values"""
@@ -424,7 +419,35 @@ class MopidySpeaker:
         self._attr_snapshot_at = None
         self._attr_is_available = False
 
+    def connect(self):
+        self.api = MopidyAPI(
+            host=self.hostname,
+            port=self.port,
+            use_websocket=True,
+            logger=logging.getLogger(__name__ + ".api"),
+        )
+
+        # https://docs.mopidy.com/en/latest/api/core/#mopidy.core.CoreListener
+        self.api.add_callback('mute_changed', self._ws_mute_changed)
+        # self.api.add_callback('options_changed', self._ws_options_changed)
+        self.api.add_callback('playback_state_changed', self._ws_playback_state_changed)
+        self.api.add_callback('playlist_changed', self._ws_playlist_changed)
+        self.api.add_callback('playlist_deleted', self._ws_playlist_deleted)
+        self.api.add_callback('playlists_loaded', self._ws_playlists_loaded)
+        self.api.add_callback('seeked', self._ws_seeked)
+        self.api.add_callback('stream_title_changed', self._ws_stream_title_changed)
+        # self.api.add_callback('track_playback_ended', self._ws_track_playback_ended)
+        # self.api.add_callback('track_playback_paused', self._ws_track_playback_paused)
+        # self.api.add_callback('track_playback_resumed', self._ws_track_playback_resumed)
+        # self.api.add_callback('track_playback_started', self._ws_track_playback_started)
+        # self.api.add_callback('tracklist_changed', self._ws_tracklist_changed)
+        # self.api.add_callback('volume_changed', self._ws_volume_changed)
+
     def update(self):
+        if not self._attr_software_version:
+            self.update_data()
+
+    def update_data(self):
         self.clear()
         try:
             self.api.rpc_call("core.get_version")
@@ -438,6 +461,11 @@ class MopidySpeaker:
             _LOGGER.debug(str(error))
             return
 
+        if not self.api.wsclient.wsthread.is_alive():
+            _LOGGER.debug("The websocket is stopped, re-create connection")
+            del self.api
+            self.connect()
+
         self._attr_software_version = self.api.rpc_call("core.get_version")
         self._attr_supported_uri_schemes = self.api.rpc_call("core.get_uri_schemes")
         self._attr_consume_mode = self.api.tracklist.get_consume()
@@ -449,16 +477,7 @@ class MopidySpeaker:
         self._attr_queue_position = self.api.tracklist.index()
 
         state = self.api.playback.get_state()
-        if state is None:
-            self._attr_state = None
-        elif state == "playing":
-            self._attr_state = MediaPlayerState.PLAYING
-        elif state == "paused":
-            self._attr_state = MediaPlayerState.PAUSED
-        elif state == "stopped":
-            self._attr_state = MediaPlayerState.IDLE
-        else:
-            self._attr_state = None
+        self._attr_state = self._eval_state(state)
 
         repeat = self.api.tracklist.get_repeat()
         single = self.api.tracklist.get_single()
@@ -652,6 +671,69 @@ class MopidySpeaker:
     def volume_up(self):
         """Turn up the volume"""
         self.set_volume(self.volume_level + 1)
+
+    def _eval_state(self, PlaybackState):
+        """Return the Mopidy PlaybackState as a valid media_player state"""
+        if PlaybackState is None:
+            return None
+        elif PlaybackState == "playing":
+            return MediaPlayerState.PLAYING
+        elif PlaybackState == "paused":
+            return MediaPlayerState.PAUSED
+        elif PlaybackState == "stopped":
+            return MediaPlayerState.IDLE
+        else:
+            return None
+
+    @callback
+    def _ws_playback_state_changed(self, state_info):
+        _LOGGER.debug("playback_state_changed from %s to %s", state_info.old_state, state_info.new_state)
+        _LOGGER.debug(str(state_info))
+        self._attr_state = self._eval_state(state_info.new_state)
+        self.entity.async_write_ha_state()
+
+    @callback
+    def _ws_mute_changed(self, state_info):
+        _LOGGER.debug("mute_changed")
+        _LOGGER.debug(str(state_info))
+        self._attr_is_volume_muted = state_info.mute
+        self.entity.async_write_ha_state()
+
+    @callback
+    def _ws_playlist_changed(self, playlist_info):
+        _LOGGER.debug("playlist_changed")
+        _LOGGER.debug(str(playlist_info))
+        self._attr_source_list = [x.name for x in self.library.playlists]
+        self.entity.async_write_ha_state()
+
+    @callback
+    def _ws_playlist_deleted(self, playlist_info):
+        _LOGGER.debug("playlist_deleted")
+        _LOGGER.debug(str(playlist_info))
+        self._attr_source_list = [x.name for x in self.library.playlists]
+        self.entity.async_write_ha_state()
+
+    @callback
+    def _ws_playlists_loaded(self):
+        _LOGGER.debug("playlists_loaded")
+        self._attr_source_list = [x.name for x in self.library.playlists]
+        self.entity.async_write_ha_state()
+
+    @callback
+    def _ws_seeked(self, seek_info):
+        _LOGGER.debug("seeked")
+        _LOGGER.debug(str(seek_info))
+        self.media._attr_media_position = int(seek_info.time_position / 1000)
+        self.media._attr_media_position_updated_at = dt_util.utcnow()
+        self.entity.async_write_ha_state()
+
+    @callback
+    def _ws_stream_title_changed(self, stream_info):
+        _LOGGER.debug("stream_title_changed")
+        _LOGGER.debug(str(stream_info))
+        self.media._attr_media_title = stream_info.title
+        self.media._attr_is_stream = True
+        self.entity.async_write_ha_state()
 
     @property
     def consume_mode(self):
