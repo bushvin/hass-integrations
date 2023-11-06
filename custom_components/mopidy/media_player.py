@@ -4,6 +4,7 @@ import logging
 from functools import partial
 import re
 import time
+import urllib.parse as urlparse
 from typing import Any
 
 import urllib.parse as urlparse
@@ -54,6 +55,7 @@ from .const import (
     SERVICE_SEARCH,
     SERVICE_SNAPSHOT,
     SERVICE_SET_CONSUME_MODE,
+    YOUTUBE_URLS,
 )
 
 from .speaker import (
@@ -177,29 +179,41 @@ class MopidyMediaPlayerEntity(MediaPlayerEntity):
         else:
             self.device_uuid = device_uuid
 
+    def is_youtube_media_type(self, media_id):
+        """Check if the provided is a youtube resource"""
+        url = urlparse.urlparse(media_id)
+        if len([ x for x in YOUTUBE_URLS if url.netloc.lower().endswith(x.lower()) ]) > 0:
+            return True
+        else:
+            return False
+
+    def resolve_youtube_media_type(self, media_type):
+        """Return the media type for youtube videos"""
+        return MediaType.MUSIC
+
+    def youtube_uri_from_media_id(self, media_id):
+        """Parse the youtube media_id and return a usable resource"""
+        url = urlparse.urlparse(media_id)
+        if "youtube" in self.speaker.supported_uri_schemes:
+            _LOGGER.debug("youtube detected")
+            query_parsed = parse_qs(url.query)
+            media_id = f"youtube:video:{query_parsed['v'][0]}"
+        elif "yt" in self.speaker.supported_uri_schemes:
+            _LOGGER.debug("yt detected")
+            media_id = f"yt:{media_id}"
+
+        return media_id
+
     async def async_play_media(
         self, media_type: MediaType | str, media_id: str, **kwargs: Any
     ) -> None:
         """Play provided media_id"""
 
-        if media_source.is_media_source_id(media_id):
-            if "youtube" in self.speaker.supported_uri_schemes:
-                if (
-                    media_id.startswith("https://www.youtube.com/")
-                    or media_id.startswith("https://youtube.com/")
-                    or media_id.startswith("https://youtu.be/")
-                ):
-                    url_parsed = urlparse.urlparse(media_id)
-                    query_parsed = parse_qs(url_parsed.query)
-                    media_id = f"youtube:video:{query_parsed['v']}"
+        if self.is_youtube_media_type(media_id):
+            media_type = self.resolve_youtube_media_type(media_type)
+            media_id = self.youtube_uri_from_media_id(media_id)
 
-            elif "yt" in self.speaker.supported_uri_schemes:
-                if (
-                    media_id.startswith("https://www.youtube.com/")
-                    or media_id.startswith("https://youtube.com/")
-                    or media_id.startswith("https://youtu.be/")
-                ):
-                    media_id = f"yt:{media_id}"
+        if media_source.is_media_source_id(media_id):
 
             media_type = MediaType.MUSIC
             media = await media_source.async_resolve_media(
@@ -210,6 +224,7 @@ class MopidyMediaPlayerEntity(MediaPlayerEntity):
         if spotify.is_spotify_media_type(media_type):
             media_type = spotify.resolve_spotify_media_type(media_type)
             media_id = spotify.spotify_uri_from_media_browser_url(media_id)
+
 
         await self.hass.async_add_executor_job(
             partial(self.speaker.play_media , media_type, media_id, **kwargs)
