@@ -169,137 +169,13 @@ class MopidyMediaPlayerEntity(MediaPlayerEntity):
         """Initialize the Mopidy device."""
 
         self.speaker = speaker
+        self.speaker.entity = self
         self.device_name = device_name
 
         if device_uuid is None:
             self.device_uuid = re.sub(r"[._-]+", "_", self.device_hostname) + "_" + str(self.device_port)
         else:
             self.device_uuid = device_uuid
-
-        self._attr_source_list = None
-        self._attr_volume_level = None
-        self._attr_is_volume_muted = None
-        self._attr_shuffle = None
-        self._attr_repeat = None
-        self._attr_supported_features = self.speaker.features
-
-        self._attr_media_content_id = None
-        self._attr_media_duration = None
-        self._attr_media_image_remotely_accessible = None
-        self._attr_media_title = None
-        self._attr_media_artist = None
-        self._attr_media_album_name = None
-        self._attr_media_album_artist = None
-        self._attr_media_track = None
-        self._attr_media_playlist = None
-        self._attr_media_position = None
-        self._attr_media_position_updated_at = None
-        self._attr_state = None
-
-        self._attr_media_image_url = None
-
-    def service_search(self, **kwargs) -> None:
-        """Search the Mopidy Server media library."""
-        query = {}
-        if isinstance(kwargs.get("keyword"), str):
-            query["any"] = [kwargs["keyword"].strip()]
-
-        if isinstance(kwargs.get("keyword_album"), str):
-            query["album"] = [kwargs["keyword_album"].strip()]
-
-        if isinstance(kwargs.get("keyword_artist"), str):
-            query["artist"] = [kwargs["keyword_artist"].strip()]
-
-        if isinstance(kwargs.get("keyword_genre"), str):
-            query["genre"] = [kwargs["keyword_genre"].strip()]
-
-        if isinstance(kwargs.get("keyword_track_name"), str):
-            query["track_name"] = [kwargs["keyword_track_name"].strip()]
-
-        if len(query.keys()) == 0:
-            return
-
-        sources = []
-        if isinstance(kwargs.get("source"), str):
-            sources = kwargs["source"].split(",")
-
-        self.speaker.queue_tracks(
-            self.library.search_tracks(sources, query, kwargs.get("exact", False))
-        )
-
-    def service_set_consume_mode(self, **kwargs) -> None:
-        """Set/Unset Consume mode"""
-        self.speaker.set_consume_mode(kwargs.get("consume_mode", False))
-
-    def service_snapshot(self) -> None:
-        """Make a snapshot of Mopidy Server."""
-        self.speaker.take_snapshot()
-
-    def service_restore(self) -> None:
-        """Restore Mopidy Server snapshot."""
-        self.speaker.restore_snapshot()
-
-    @property
-    def library(self) -> MopidyLibrary:
-        """Return the library object from the speaker"""
-        return self.speaker.library
-
-    @property
-    def media(self) -> MopidyMedia:
-        """Return the media object from the speaker"""
-        return self.speaker.media
-
-    @property
-    def unique_id(self) -> str:
-        """Return the unique id for the entity."""
-        return self.device_uuid
-
-    @property
-    def name(self) -> str:
-        """Return the name of the entity."""
-        return self.device_name
-
-    @property
-    def icon(self) -> str:
-        """Return the icon."""
-        return ICON
-
-    @property
-    def available(self) -> bool:
-        """Return True if entity is available."""
-        return self.speaker.is_available
-
-    def mute_volume(self, mute) -> None:
-        """Mute the volume."""
-        self.speaker.set_mute(mute)
-
-    def set_volume_level(self, volume) -> None:
-        """Set volume level, range 0..1."""
-        self.speaker.set_volume(int(volume * 100))
-
-    def media_play(self) -> None:
-        """Send play command."""
-        self.speaker.media_play()
-
-    def media_pause(self) -> None:
-        """Send pause command."""
-        self.speaker.media_pause()
-
-    def media_stop(self) -> None:
-        """Send stop command."""
-        self.speaker.media_stop()
-
-    def media_previous_track(self) -> None:
-        """Send previous track command."""
-        self.speaker.media_previous_track()
-
-    def media_next_track(self) -> None:
-        """Send next track command."""
-        self.speaker.media_next_track()
-
-    def media_seek(self, position) -> None:
-        """Send seek command."""
-        self.speaker.media_seek(int(position * 1000))
 
     async def async_play_media(
         self, media_type: MediaType | str, media_id: str, **kwargs: Any
@@ -339,29 +215,242 @@ class MopidyMediaPlayerEntity(MediaPlayerEntity):
             partial(self.speaker.play_media , media_type, media_id, **kwargs)
         )
 
-    def select_source(self, source) -> None:
-        """Select input source."""
-        self.speaker.select_source(source)
-
     def clear_playlist(self) -> None:
         """Clear players playlist."""
         self.speaker.clear_queue()
 
-    def set_shuffle(self, shuffle) -> None:
-        """Enable/disable shuffle mode."""
-        self.speaker.set_shuffle(shuffle)
+    def media_next_track(self) -> None:
+        """Send next track command."""
+        self.speaker.media_next_track()
+
+    def media_pause(self) -> None:
+        """Send pause command."""
+        self.speaker.media_pause()
+
+    def media_play(self) -> None:
+        """Send play command."""
+        self.speaker.media_play()
+
+    def media_previous_track(self) -> None:
+        """Send previous track command."""
+        self.speaker.media_previous_track()
+
+    def media_seek(self, position) -> None:
+        """Send seek command."""
+        self.speaker.media_seek(int(position * 1000))
+
+    def media_stop(self) -> None:
+        """Send stop command."""
+        self.speaker.media_stop()
+
+    def mute_volume(self, mute) -> None:
+        """Mute the volume."""
+        self.speaker.set_mute(mute)
+
+    def select_source(self, source) -> None:
+        """Select input source."""
+        self.speaker.select_source(source)
+
+    def service_restore(self) -> None:
+        """Restore Mopidy Server snapshot."""
+        self.speaker.restore_snapshot()
+
+    def service_search(self, **kwargs) -> None:
+        """Search the Mopidy Server media library."""
+        query = {}
+        if isinstance(kwargs.get("keyword"), str):
+            query["any"] = [kwargs["keyword"].strip()]
+
+        if isinstance(kwargs.get("keyword_album"), str):
+            query["album"] = [kwargs["keyword_album"].strip()]
+
+        if isinstance(kwargs.get("keyword_artist"), str):
+            query["artist"] = [kwargs["keyword_artist"].strip()]
+
+        if isinstance(kwargs.get("keyword_genre"), str):
+            query["genre"] = [kwargs["keyword_genre"].strip()]
+
+        if isinstance(kwargs.get("keyword_track_name"), str):
+            query["track_name"] = [kwargs["keyword_track_name"].strip()]
+
+        if len(query.keys()) == 0:
+            return
+
+        sources = []
+        if isinstance(kwargs.get("source"), str):
+            sources = kwargs["source"].split(",")
+
+        self.speaker.queue_tracks(
+            self.library.search_tracks(sources, query, kwargs.get("exact", False))
+        )
+
+    def service_set_consume_mode(self, **kwargs) -> None:
+        """Set/Unset Consume mode"""
+        self.speaker.set_consume_mode(kwargs.get("consume_mode", False))
+
+    def service_snapshot(self) -> None:
+        """Make a snapshot of Mopidy Server."""
+        self.speaker.take_snapshot()
 
     def set_repeat(self, repeat) -> None:
         """Set repeat mode."""
         self.speaker.set_repeat_mode(repeat)
 
-    def volume_up(self) -> None:
-        """Turn volume up for media player."""
-        self.speaker.volume_up()
+    def set_shuffle(self, shuffle) -> None:
+        """Enable/disable shuffle mode."""
+        self.speaker.set_shuffle(shuffle)
+
+    def set_volume_level(self, volume) -> None:
+        """Set volume level, range 0..1."""
+        self.speaker.set_volume(int(volume * 100))
 
     def volume_down(self) -> None:
         """Turn volume down for media player."""
         self.speaker.volume_down()
+
+    def volume_up(self) -> None:
+        """Turn volume up for media player."""
+        self.speaker.volume_up()
+
+    @property
+    def _attr_is_volume_muted(self):
+        if self.speaker is None:
+            return None
+        else:
+            return self.speaker.is_muted
+
+    @property
+    def _attr_media_album_artist(self):
+        if self.media is None:
+            return None
+        else:
+            return self.media.album_artist
+
+    @property
+    def _attr_media_album_name(self):
+        if self.media is None:
+            return None
+        else:
+            return self.media.album_name
+
+    @property
+    def _attr_media_artist(self):
+        if self.media is None:
+            return None
+        else:
+            return self.media.artist
+
+    @property
+    def _attr_media_content_id(self):
+        if self.media is None:
+            return None
+        else:
+            return self.media.uri
+
+    @property
+    def _attr_media_duration(self):
+        if self.media is None:
+            return None
+        else:
+            return self.media.duration
+
+    @property
+    def _attr_media_image_url(self):
+        if self.media is None:
+            return None
+        else:
+            return self.media.image_url
+
+    @property
+    def _attr_media_image_remotely_accessible(self):
+        if self.media is None:
+            return None
+        else:
+            return self.media.image_remotely_accessible
+
+    @property
+    def _attr_media_playlist(self):
+        if self.media is None:
+            return None
+        else:
+            return self.media.playlist_name
+
+    @property
+    def _attr_media_position(self):
+        if self.media is None:
+            return None
+        else:
+            return self.media.position
+
+    @property
+    def _attr_media_position_updated_at(self):
+        if self.media is None:
+            return None
+        else:
+            return self.media.position_updated_at
+
+    @property
+    def _attr_media_title(self):
+        if self.media is None:
+            return None
+        else:
+            return self.media.title
+
+    @property
+    def _attr_media_track(self):
+        if self.media is None:
+            return None
+        else:
+            return self.media.track_number
+
+    @property
+    def _attr_repeat(self):
+        if self.speaker is None:
+            return None
+        else:
+            return self.speaker.repeat
+
+    @property
+    def _attr_source_list(self):
+        if self.speaker is None:
+            return None
+        else:
+            return self.speaker.source_list
+
+    @property
+    def _attr_shuffle(self):
+        if self.speaker is None:
+            return None
+        else:
+            return self.speaker.is_shuffled
+
+    @property
+    def _attr_supported_features(self):
+        if self.speaker is None:
+            return None
+        else:
+            return self.speaker.features
+
+    @property
+    def _attr_state(self):
+        if self.speaker is None:
+            return None
+        else:
+            return self.speaker.state
+
+    @property
+    def _attr_volume_level(self):
+        if self.speaker is None:
+            return None
+        elif self.speaker.volume_level is None:
+            return None
+        else:
+            return float(self.speaker.volume_level/100)
+
+    @property
+    def available(self) -> bool:
+        """Return True if entity is available."""
+        return self.speaker.is_available
 
     @property
     def device_info(self) -> dict[str, Any]:
@@ -396,62 +485,70 @@ class MopidyMediaPlayerEntity(MediaPlayerEntity):
 
         return attributes
 
+    @property
+    def icon(self) -> str:
+        """Return the icon."""
+        return ICON
+
+    @property
+    def library(self) -> MopidyLibrary:
+        """Return the library object from the speaker"""
+        return self.speaker.library
+
+    @property
+    def media(self) -> MopidyMedia:
+        """Return the media object from the speaker"""
+        return self.speaker.media
+
+    @property
+    def name(self) -> str:
+        """Return the name of the entity."""
+        return self.device_name
+
+    @property
+    def unique_id(self) -> str:
+        """Return the unique id for the entity."""
+        return self.device_uuid
+
     def update(self) -> None:
         """Get the latest data and update the state."""
+
         self.speaker.update()
-        self._attr_state = self.speaker.state
-        if self.speaker.state is None:
+
+        if self._attr_state is None:
             _LOGGER.error(f"{self.entity_id} is unavailable")
             return
 
-        self._attr_source_list = self.speaker.source_list
-        self._attr_volume_level = float(self.speaker.volume_level/100)
-        self._attr_is_volume_muted = self.speaker.is_muted
-        self._attr_shuffle = self.speaker.is_shuffled
-        self._attr_repeat = self.speaker.repeat
-        self._attr_supported_features = self.speaker.features
-        self._attr_media_content_id = self.media.uri
-        self._attr_media_duration = self.media.duration
-        self._attr_media_image_remotely_accessible = self.media.image_remotely_accessible
-        self._attr_media_title = self.media.title
-        self._attr_media_artist = self.media.artist
-        self._attr_media_album_name = self.media.album_name
-        self._attr_media_album_artist = self.media.album_artist
-        self._attr_media_track = self.media.track_number
-        self._attr_media_playlist = self.media.playlist_name
-        self._attr_media_position = self.media.position
-        self._attr_media_position_updated_at = self.media.position_updated_at
-        self._attr_media_image_url = self.media.image_url
+        if False:
+            _LOGGER.debug("is_volume_muted: %s", self._attr_is_volume_muted)
+            _LOGGER.debug("repeat: %s", self._attr_repeat)
+            _LOGGER.debug("shuffle: %s", self._attr_shuffle)
+            _LOGGER.debug("source_list: %s", self._attr_source_list)
+            _LOGGER.debug("supported_features: %s", self._attr_supported_features)
+            _LOGGER.debug("volume_level: %s", self._attr_volume_level)
+            _LOGGER.debug("media_artist: %s", self._attr_media_artist)
+            _LOGGER.debug("media_album_artist: %s", self._attr_media_album_artist)
+            _LOGGER.debug("media_album_name: %s", self._attr_media_album_name)
+            _LOGGER.debug("media_content_id: %s", self._attr_media_content_id)
+            _LOGGER.debug("media_duration: %s", self._attr_media_duration)
+            _LOGGER.debug("media_image_url: %s", self._attr_media_image_url)
+            _LOGGER.debug("media_playlist: %s", self._attr_media_playlist)
+            _LOGGER.debug("media_position: %s", self._attr_media_position)
+            _LOGGER.debug(
+                "media_position_updated_at: %s",
+                self._attr_media_position_updated_at
+            )
+            _LOGGER.debug("media_title: %s", self._attr_media_title)
+            _LOGGER.debug("media_track: %s", self._attr_media_track)
 
-        _LOGGER.debug("is_volume_muted: %s", self._attr_is_volume_muted)
-        _LOGGER.debug("repeat: %s", self._attr_repeat)
-        _LOGGER.debug("shuffle: %s", self._attr_shuffle)
-        _LOGGER.debug("source_list: %s", self._attr_source_list)
-        _LOGGER.debug("supported_features: %s", self._attr_supported_features)
-        _LOGGER.debug("volume_level: %s", self._attr_volume_level)
-        _LOGGER.debug("media_artist: %s", self._attr_media_artist)
-        _LOGGER.debug("media_album_artist: %s", self._attr_media_album_artist)
-        _LOGGER.debug("media_album_name: %s", self._attr_media_album_name)
-        _LOGGER.debug("media_content_id: %s", self._attr_media_content_id)
-        _LOGGER.debug("media_duration: %s", self._attr_media_duration)
-        _LOGGER.debug("media_image_url: %s", self._attr_media_image_url)
-        _LOGGER.debug("media_playlist: %s", self._attr_media_playlist)
-        _LOGGER.debug("media_position: %s", self._attr_media_position)
-        _LOGGER.debug(
-            "media_position_updated_at: %s",
-            self._attr_media_position_updated_at
-        )
-        _LOGGER.debug("media_title: %s", self._attr_media_title)
-        _LOGGER.debug("media_track: %s", self._attr_media_track)
-
-        _LOGGER.debug("state: %s", self._attr_state)
-        _LOGGER.debug(
-            "image_remotely_accessible: %s",
-            self._attr_media_image_remotely_accessible
-        )
-        _LOGGER.debug("track_list: %s", self.speaker.tracklist_uris)
-        _LOGGER.debug("track_list_index: %s", self.speaker.queue_position)
-
+            _LOGGER.debug("state: %s", self._attr_state)
+            _LOGGER.debug(
+                "image_remotely_accessible: %s",
+                self._attr_media_image_remotely_accessible
+            )
+            _LOGGER.debug("track_list: %s", self.speaker.tracklist_uris)
+            _LOGGER.debug("track_list_index: %s", self.speaker.queue_position)
+            _LOGGER.debug("self.speaker.api.wsclient.wsthread.is_alive(): %s", self.speaker.api.wsclient.wsthread.is_alive())
 
     async def async_browse_media(
         self,
