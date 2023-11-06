@@ -101,6 +101,8 @@ def media_source_filter(item: BrowseMedia):
 class MissingMediaInformation(BrowseError):
     """Missing media required information."""
 
+class MissingMopidyExtension(BrowseError):
+    """Missing Mopidy Extension."""
 
 async def async_setup_entry(
     hass: HomeAssistant,
@@ -201,6 +203,8 @@ class MopidyMediaPlayerEntity(MediaPlayerEntity):
         elif "yt" in self.speaker.supported_uri_schemes:
             _LOGGER.debug("yt detected")
             media_id = f"yt:{media_id}"
+        else:
+            raise MissingMopidyExtension("No Mopidy Extensions found for Youtube")
 
         return media_id
 
