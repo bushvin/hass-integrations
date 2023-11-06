@@ -3,9 +3,10 @@ import logging
 #import asyncio
 import datetime
 import time
-from mopidyapi import MopidyAPI
 import urllib.parse as urlparse
 from urllib.parse import urlencode
+from functools import partial
+from mopidyapi import MopidyAPI
 
 from homeassistant.components import media_source, spotify
 from homeassistant.core import HomeAssistant, callback
@@ -166,14 +167,7 @@ class MopidyMedia:
     def update(self):
         """Update media information"""
         self.clear()
-
-        try:
-            current_track = self.api.playback.get_current_track()
-        except reConnectionError as error:
-            _LOGGER.error(
-                "Cannot get current track information"
-            )
-            _LOGGER.debug(str(error))
+        self.update_current_track_info()
 
         try:
             current_stream_title = self.api.playback.get_stream_title()
@@ -191,11 +185,6 @@ class MopidyMedia:
             )
             _LOGGER.debug(str(error))
 
-        if hasattr(current_track, "uri"):
-            self._attr_track_uri = current_track.uri
-            self._attr_extension = current_track.uri.partition(":")[0]
-            self._attr_track_source = current_track.uri.partition(":")[0]
-
         try:
             if self.uri is not None:
                 current_image = self.api.library.get_images([self.uri])
@@ -207,28 +196,11 @@ class MopidyMedia:
             )
             _LOGGER.debug(str(error))
 
-        if hasattr(current_track, "track_no"):
-            self._attr_track_number = int(current_track.track_no)
-
-        if hasattr(current_track, "length"):
-            self._attr_track_duration = int(current_track.length / 1000)
-
         if current_stream_title is not None:
             self._attr_media_title = current_stream_title
             self._attr_is_stream = True
             if hasattr(current_track, "name"):
                 self._attr_media_artist = current_track.name
-        else:
-            if hasattr(current_track, "name"):
-                self._attr_media_title = current_track.name
-            if hasattr(current_track, "artists"):
-                self._attr_media_artist = ", ".join([x.name for x in current_track.artists])
-
-        if hasattr(current_track, "album") and hasattr(current_track.album, "name"):
-            self._attr_album_name = current_track.album.name
-
-        if hasattr(current_track, "artists"):
-            self._attr_album_artist = ", ".join([x.name for x in current_track.artists])
 
         self._attr_media_position = int(current_media_position / 1000)
         self._attr_media_position_updated_at = dt_util.utcnow()
@@ -241,9 +213,42 @@ class MopidyMedia:
         ):
             self._attr_media_image_url = self.expand_url(self.source, current_image[self.uri][0].uri)
 
-
         if self._playlist_track_uris is not None and self.uri not in self._playlist_track_uris:
             self.clear_playlist()
+
+    def update_current_track_info(self):
+        """Update the current track info"""
+        try:
+            current_track = self.api.playback.get_current_track()
+        except reConnectionError as error:
+            _LOGGER.error(
+                "Cannot get current track information"
+            )
+            _LOGGER.debug(str(error))
+
+        if hasattr(current_track, "uri"):
+            self._attr_track_uri = current_track.uri
+            self._attr_extension = current_track.uri.partition(":")[0]
+            self._attr_track_source = current_track.uri.partition(":")[0]
+
+        if hasattr(current_track, "track_no"):
+            self._attr_track_number = int(current_track.track_no)
+
+        if hasattr(current_track, "length"):
+            self._attr_track_duration = int(current_track.length / 1000)
+
+        if hasattr(current_track, "album") and hasattr(current_track.album, "name"):
+            self._attr_album_name = current_track.album.name
+
+        if hasattr(current_track, "artists"):
+            self._attr_album_artist = ", ".join([x.name for x in current_track.artists])
+
+        if hasattr(current_track, "name"):
+            self._attr_media_title = current_track.name
+
+        if hasattr(current_track, "artists"):
+            self._attr_media_artist = ", ".join([x.name for x in current_track.artists])
+
 
     def clear_playlist(self):
         self._attr_playlist_name = None
@@ -436,12 +441,12 @@ class MopidySpeaker:
         self.api.add_callback('playlists_loaded', self._ws_playlists_loaded)
         self.api.add_callback('seeked', self._ws_seeked)
         self.api.add_callback('stream_title_changed', self._ws_stream_title_changed)
-        # self.api.add_callback('track_playback_ended', self._ws_track_playback_ended)
-        # self.api.add_callback('track_playback_paused', self._ws_track_playback_paused)
-        # self.api.add_callback('track_playback_resumed', self._ws_track_playback_resumed)
-        # self.api.add_callback('track_playback_started', self._ws_track_playback_started)
-        # self.api.add_callback('tracklist_changed', self._ws_tracklist_changed)
-        # self.api.add_callback('volume_changed', self._ws_volume_changed)
+        self.api.add_callback('track_playback_ended', self._ws_track_playback_ended)
+        self.api.add_callback('track_playback_paused', self._ws_track_playback_paused)
+        self.api.add_callback('track_playback_resumed', self._ws_track_playback_resumed)
+        self.api.add_callback('track_playback_started', self._ws_track_playback_started)
+        self.api.add_callback('tracklist_changed', self._ws_tracklist_changed)
+        self.api.add_callback('volume_changed', self._ws_volume_changed)
 
     def update(self):
         if not self._attr_software_version:
@@ -748,6 +753,59 @@ class MopidySpeaker:
         _LOGGER.debug(str(stream_info))
         self.media._attr_media_title = stream_info.title
         self.media._attr_is_stream = True
+        self.entity.async_write_ha_state()
+
+    def _ws_track_playback_changed(self):
+        a = 1
+        # do something clever
+
+    @callback
+    async def _ws_track_playback_ended(self, playback_state):
+        _LOGGER.debug("track_playback_ended")
+        _LOGGER.debug(str(playback_state))
+        self.hass.async_add_executor_job(
+            partial(self.media.update_current_track_info)
+        )
+        self.entity.async_write_ha_state()
+
+    @callback
+    def _ws_track_playback_paused(self, playback_state):
+        _LOGGER.debug("track_playback_paused")
+        _LOGGER.debug(str(playback_state))
+        self.hass.async_add_executor_job(
+            partial(self.media.update_current_track_info)
+        )
+        self.entity.async_write_ha_state()
+
+    @callback
+    def _ws_track_playback_resumed(self, playback_state):
+        _LOGGER.debug("track_playback_resumed")
+        _LOGGER.debug(str(playback_state))
+        self.hass.async_add_executor_job(
+            partial(self.media.update_current_track_info)
+        )
+        self.entity.async_write_ha_state()
+
+    @callback
+    async def _ws_track_playback_started(self, playback_state):
+        _LOGGER.debug("track_playback_started")
+        _LOGGER.debug(str(playback_state))
+        self.hass.async_add_executor_job(
+            partial(self.media.update_current_track_info)
+        )
+        self.entity.async_write_ha_state()
+
+    @callback
+    def _ws_tracklist_changed(self):
+        _LOGGER.debug("tracklist_changed")
+        self._attr_tracklist = self.api.tracklist.get_tracks()
+        self.entity.async_write_ha_state()
+
+    @callback
+    def _ws_volume_changed(self, volume_info):
+        _LOGGER.debug("volume_changed")
+        _LOGGER.debug(str(volume_info))
+        self._attr_volume_level = self.api.mixer.get_volume()
         self.entity.async_write_ha_state()
 
     @property
