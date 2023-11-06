@@ -204,7 +204,7 @@ class MopidyMediaPlayerEntity(MediaPlayerEntity):
             _LOGGER.debug("yt detected")
             media_id = f"yt:{media_id}"
         else:
-            raise MissingMopidyExtension("No Mopidy Extensions found for Youtube")
+            raise MissingMopidyExtension("No Mopidy Extensions found for Youtube. If this incorrect, please open an issue.")
 
         return media_id
 
