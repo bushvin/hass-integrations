@@ -10,3 +10,7 @@ SERVICE_RESTORE = "restore"
 SERVICE_SEARCH = "search"
 CACHE_TITLES = {}
 CACHE_ART = {}
+YOUTUBE_URLS = [
+    "youtube.com",
+    "youtu.be"
+]
