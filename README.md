@@ -23,19 +23,19 @@ Please look at the [Mopidy installation & configuration instructions](https://do
 1. Add the URL to the repository.
 1. Select the correct category.
 1. Click the "ADD" button.
-1. Go to Home Assistaat settings -> Integrations and add Mopidy
+1. Go to Home Assistant settings -> Integrations and add Mopidy
 1. Restart HA
 
 #### Manual
 
 1. Clone this repository
-2. Copy `custom_components/mopidy` to your Home Assistant insance on `<config dir>/custom_components/`
+2. Copy `custom_components/mopidy` to your Home Assistant instance on `<config dir>/custom_components/`
 
 ### Setup
 
 #### zeroconf
 
-Your Mopidy Servers can be detected and added to Home Assitant through zeroconf.
+Your Mopidy Servers can be detected and added to Home Assistant through zeroconf.
 
 #### GUI
 
@@ -57,6 +57,7 @@ media_player:
   port: <port if different from 6680>
   platform: mopidy
 ```
+
 2. Restart your Home assistant to make changes take effect.
 
 ### Configuration
@@ -79,7 +80,6 @@ Currently supported for:
 
 - Youtube
 
-
 #### Service mopidy.restore
 
 Restore a previously taken snapshot of one or more Mopidy Servers
@@ -98,7 +98,7 @@ Search media based on keywords and add them to the queue. This service does not 
 
 |Service data attribute|Optional|Description|Example|
 |-|-|-|-|
-|`entity_id`|no|String or list of `entity_id`s ito take a snapshot of.| |
+|`entity_id`|no|String or list of `entity_id`s to search and return the result to.| |
 |`exact`|yes|String. Should the search be an exact match|false|
 |`keyword`|yes|String. The keywords to search for. Will search all track fields.|Everlong|
 |`keyword_album`|yes|String. The keywords to search for in album titles.|From Mars to Sirius|
@@ -106,6 +106,15 @@ Search media based on keywords and add them to the queue. This service does not 
 |`keyword_genre`|yes|String. The keywords to search for in genres.|rock|
 |`keyword_track_name`|yes|String. The keywords to search for in track names.|Lazarus|
 |`source`|yes|String. URI sources to search. `local`, `spotify` and `tunein` are the only supported options. Make sure to have these extensions enabled on your Mopidy Server! Separate multiple sources with a comma (,).|local,spotify|
+
+#### Service mopidy.set_consume_mode
+
+Set the mopidy consume mode for the specified entity
+
+|Service data attribute|Optional|Description|
+|-|-|-|
+|`entity_id`|no|String or list of `entity_id`s to set the consume mode of.|
+|`consume_mode`|no|`True` to enable consume mode, `False` to disable |
 
 #### Service mopidy.snapshot
 
@@ -117,7 +126,6 @@ Take a snapshot of what is currently playing on one or more Mopidy Servers. This
 |-|-|-|
 |`entity_id`|no|String or list of `entity_id`s ito take a snapshot of.|
 
-
 ### Notes
 
 Due to the nature of the way Mopidy provides thumbnails of the media,
@@ -125,10 +133,9 @@ proxying them through Home Assistant is very resource intensive,
 causing delays. Therefore, I have decided to not proxy the art when
 using the Media Library for the time being.
 
-# Testers
+## Testers
 
 - [Jan Gutowski](https://github.com/Switch123456789)
-
 
 [badge_version]: https://img.shields.io/github/v/tag/bushvin/hass-integrations?label=Version&style=flat-square&color=2577a1
 [badge_issues]: https://img.shields.io/github/issues/bushvin/hass-integrations?style=flat-square
