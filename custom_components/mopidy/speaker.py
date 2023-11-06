@@ -547,12 +547,15 @@ class MopidySpeaker:
         if enqueue == MediaPlayerEnqueue.ADD:
             # Add media uris to end of the queue
             self.queue_tracks(media_uris)
-            self.media_play()
+            if self.state != MediaPlayerState.PLAYING:
+                self.media_play()
 
         elif enqueue == MediaPlayerEnqueue.NEXT:
             # Add media uris to queue after current playing track
             index = self.queue_position
             self.queue_tracks(media_uris, at_position=index+1)
+            if self.state != MediaPlayerState.PLAYING:
+                self.media_play()
 
         elif enqueue == MediaPlayerEnqueue.PLAY:
             # Insert media uris before current playing track into queue and play first of new uris
