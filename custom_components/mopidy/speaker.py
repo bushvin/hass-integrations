@@ -395,25 +395,22 @@ class MopidySpeaker:
     _attr_queue_position: int | None = None
     _attr_snapshot_at: datetime.datetime | None = None
 
-    _attr_supported_features_base = (
+    _attr_supported_features = (
         MediaPlayerEntityFeature.BROWSE_MEDIA
         | MediaPlayerEntityFeature.CLEAR_PLAYLIST
         | MediaPlayerEntityFeature.MEDIA_ENQUEUE
+        | MediaPlayerEntityFeature.NEXT_TRACK
         | MediaPlayerEntityFeature.PAUSE
         | MediaPlayerEntityFeature.PLAY
         | MediaPlayerEntityFeature.PLAY_MEDIA
+        | MediaPlayerEntityFeature.PREVIOUS_TRACK
+        | MediaPlayerEntityFeature.REPEAT_SET
         | MediaPlayerEntityFeature.SEEK
+        | MediaPlayerEntityFeature.SHUFFLE_SET
         | MediaPlayerEntityFeature.STOP
         | MediaPlayerEntityFeature.SELECT_SOURCE
         | MediaPlayerEntityFeature.VOLUME_MUTE
         | MediaPlayerEntityFeature.VOLUME_SET
-    )
-
-    _attr_supported_features_media = (
-        MediaPlayerEntityFeature.NEXT_TRACK
-        | MediaPlayerEntityFeature.PREVIOUS_TRACK
-        | MediaPlayerEntityFeature.REPEAT_SET
-        | MediaPlayerEntityFeature.SHUFFLE_SET
     )
 
     def __init__(self,
@@ -1010,10 +1007,7 @@ class MopidySpeaker:
     @property
     def features(self):
         """Return the features of the Speaker"""
-        if self.media.is_stream:
-            return self._attr_supported_features_base
-        else:
-            return self._attr_supported_features_base | self._attr_supported_features_media
+        return self._attr_supported_features
 
     @property
     def is_available(self):
