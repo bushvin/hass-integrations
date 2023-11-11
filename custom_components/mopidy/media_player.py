@@ -59,7 +59,6 @@ from .const import (
 )
 
 from .speaker import (
-    MopidyMedia,
     MopidyLibrary,
     MopidySpeaker,
 )
@@ -197,12 +196,12 @@ class MopidyMediaPlayerEntity(MediaPlayerEntity):
         """Parse the youtube media_id and return a usable resource"""
         url = urlparse.urlparse(media_id)
         if "youtube" in self.speaker.supported_uri_schemes:
-            _LOGGER.debug("youtube detected")
             query_parsed = parse_qs(url.query)
             media_id = f"youtube:video:{query_parsed['v'][0]}"
+
         elif "yt" in self.speaker.supported_uri_schemes:
-            _LOGGER.debug("yt detected")
             media_id = f"yt:{media_id}"
+
         else:
             raise MissingMopidyExtension("No Mopidy Extensions found for Youtube. If this incorrect, please open an issue.")
 
@@ -340,87 +339,51 @@ class MopidyMediaPlayerEntity(MediaPlayerEntity):
 
     @property
     def _attr_media_album_artist(self):
-        if self.media is None:
-            return None
-        else:
-            return self.media.album_artist
+        return self.speaker.queue.current_track_album_artist
 
     @property
     def _attr_media_album_name(self):
-        if self.media is None:
-            return None
-        else:
-            return self.media.album_name
+        return self.speaker.queue.current_track_album_name
 
     @property
     def _attr_media_artist(self):
-        if self.media is None:
-            return None
-        else:
-            return self.media.artist
+        return self.speaker.queue.current_track_artist
 
     @property
     def _attr_media_content_id(self):
-        if self.media is None:
-            return None
-        else:
-            return self.media.uri
+        return self.speaker.queue.current_track_uri
 
     @property
     def _attr_media_duration(self):
-        if self.media is None:
-            return None
-        else:
-            return self.media.duration
+        return self.speaker.queue.current_track_duration
 
     @property
     def _attr_media_image_url(self):
-        if self.media is None:
-            return None
-        else:
-            return self.media.image_url
+        return self.speaker.queue.current_track_image_url
 
     @property
     def _attr_media_image_remotely_accessible(self):
-        if self.media is None:
-            return None
-        else:
-            return self.media.image_remotely_accessible
+        return self.speaker.queue.current_track_image_remotely_accessible
 
     @property
     def _attr_media_playlist(self):
-        if self.media is None:
-            return None
-        else:
-            return self.media.playlist_name
+        return self.speaker.queue.current_track_playlist_name
 
     @property
     def _attr_media_position(self):
-        if self.media is None:
-            return None
-        else:
-            return self.media.position
+        return self.speaker.queue.current_track_position
 
     @property
     def _attr_media_position_updated_at(self):
-        if self.media is None:
-            return None
-        else:
-            return self.media.position_updated_at
+        return self.speaker.queue.current_track_position_updated_at
 
     @property
     def _attr_media_title(self):
-        if self.media is None:
-            return None
-        else:
-            return self.media.title
+        return self.speaker.queue.current_track_title
 
     @property
     def _attr_media_track(self):
-        if self.media is None:
-            return None
-        else:
-            return self.media.track_number
+        return self.speaker.queue.current_track_number
 
     @property
     def _attr_repeat(self):
@@ -487,17 +450,17 @@ class MopidyMediaPlayerEntity(MediaPlayerEntity):
         """Return entity specific state attributes"""
         attributes: dict[str, Any] = {}
 
-        if self.speaker.queue_position is not None:
-            attributes["queue_position"] = self.speaker.queue_position
+        if self.speaker.queue.position is not None:
+            attributes["queue_position"] = self.speaker.queue.position
 
-        if self.speaker.queue_size is not None:
-            attributes["queue_size"] = self.speaker.queue_size
+        if self.speaker.queue.size is not None:
+            attributes["queue_size"] = self.speaker.queue.size
 
         if self.speaker.consume_mode is not None:
             attributes["consume_mode"] = self.speaker.consume_mode
 
-        if self.media.extension is not None:
-            attributes["mopidy_extension"] = self.media.extension
+        if self.speaker.queue.current_track_extension is not None:
+            attributes["mopidy_extension"] = self.speaker.queue.current_track_extension
 
         if self.speaker.snapshot_taken_at is not None:
             attributes["snapshot_taken_at"] = self.speaker.snapshot_taken_at
@@ -514,10 +477,10 @@ class MopidyMediaPlayerEntity(MediaPlayerEntity):
         """Return the library object from the speaker"""
         return self.speaker.library
 
-    @property
-    def media(self) -> MopidyMedia:
-        """Return the media object from the speaker"""
-        return self.speaker.media
+    # @property
+    # def media(self) -> MopidyMedia:
+    #     """Return the media object from the speaker"""
+    #     return self.speaker.media
 
     @property
     def name(self) -> str:
@@ -537,37 +500,6 @@ class MopidyMediaPlayerEntity(MediaPlayerEntity):
         if self._attr_state is None:
             _LOGGER.error(f"{self.entity_id} is unavailable")
             return
-
-        if False:
-            _LOGGER.debug("is_volume_muted: %s", self._attr_is_volume_muted)
-            _LOGGER.debug("repeat: %s", self._attr_repeat)
-            _LOGGER.debug("shuffle: %s", self._attr_shuffle)
-            _LOGGER.debug("source_list: %s", self._attr_source_list)
-            _LOGGER.debug("supported_features: %s", self._attr_supported_features)
-            _LOGGER.debug("volume_level: %s", self._attr_volume_level)
-            _LOGGER.debug("media_artist: %s", self._attr_media_artist)
-            _LOGGER.debug("media_album_artist: %s", self._attr_media_album_artist)
-            _LOGGER.debug("media_album_name: %s", self._attr_media_album_name)
-            _LOGGER.debug("media_content_id: %s", self._attr_media_content_id)
-            _LOGGER.debug("media_duration: %s", self._attr_media_duration)
-            _LOGGER.debug("media_image_url: %s", self._attr_media_image_url)
-            _LOGGER.debug("media_playlist: %s", self._attr_media_playlist)
-            _LOGGER.debug("media_position: %s", self._attr_media_position)
-            _LOGGER.debug(
-                "media_position_updated_at: %s",
-                self._attr_media_position_updated_at
-            )
-            _LOGGER.debug("media_title: %s", self._attr_media_title)
-            _LOGGER.debug("media_track: %s", self._attr_media_track)
-
-            _LOGGER.debug("state: %s", self._attr_state)
-            _LOGGER.debug(
-                "image_remotely_accessible: %s",
-                self._attr_media_image_remotely_accessible
-            )
-            _LOGGER.debug("track_list: %s", self.speaker.tracklist_uris)
-            _LOGGER.debug("track_list_index: %s", self.speaker.queue_position)
-            _LOGGER.debug("self.speaker.api.wsclient.wsthread.is_alive(): %s", self.speaker.api.wsclient.wsthread.is_alive())
 
     async def async_browse_media(
         self,
@@ -701,7 +633,7 @@ class MopidyMediaPlayerEntity(MediaPlayerEntity):
             i = self.library.get_images(uri_set)
             for img_uri in i:
                 if len(i[img_uri]) > 0:
-                    CACHE_ART[img_uri] = self.media.expand_url(mopidy_info["source"], i[img_uri][0].uri)
+                    CACHE_ART[img_uri] = self.speaker.queue.expand_url(mopidy_info["source"], i[img_uri][0].uri)
                 else:
                     CACHE_ART[img_uri] = None
 
