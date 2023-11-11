@@ -4,7 +4,6 @@ import datetime
 import time
 import urllib.parse as urlparse
 from urllib.parse import urlencode
-from functools import partial
 from mopidyapi import MopidyAPI
 
 from homeassistant.components import media_source, spotify
@@ -62,14 +61,6 @@ class MopidyLibrary:
 
         return [x.uri for x in self.browse(uri)]
 
-    @property
-    def playlists(self):
-        """Return playlists known to mopidy"""
-        # NOTE: check if we need to/can extend the playlist entries with MediaType
-        if not hasattr(self.api, "playlists"):
-            return []
-        return self.api.playlists.as_list()
-
     def search(self, sources=None, query=None, exact=False):
         """Search the library for something"""
         if sources is None:
@@ -102,6 +93,13 @@ class MopidyLibrary:
         return uris
 
     @property
+    def playlists(self):
+        """Return playlists known to mopidy"""
+        if not hasattr(self.api, "playlists"):
+            return []
+        return self.api.playlists.as_list()
+
+    @property
     def supported_uri_schemes(self):
         """Return the supported schemes (extensions)"""
         if self._attr_supported_uri_schemes is None:
@@ -109,50 +107,125 @@ class MopidyLibrary:
 
         return self._attr_supported_uri_schemes
 
-class MopidyMedia:
-    """Representation of Mopidy Media"""
+class MopidyQueue:
+    """Representation of Mopidy Queue"""
 
+    hass: HomeAssistant | None = None
     api: MopidyAPI | None = None
+    queue: dict | None = None
+    local_url_base: str | None = None
 
-    _attr_local_url_base: str | None = None
-    _attr_track_uri: str | None = None
-    _attr_track_source: str | None = None
-    _attr_track_number: int | None = None
-    _attr_track_duration: int | None = None
-    _attr_media_title: str | None = None
-    _attr_media_artist: str | None = None
-    _attr_media_position: int | None = None
-    _attr_media_position_updated_at: datetime.datetime | None = None
-    _attr_album_name: str | None = None
-    _attr_album_artist: str | None = None
-    _attr_playlist_name: str | None = None
-    _playlist_track_uris: list | None = None
-    _attr_media_image_url: str | None = None
-    _attr_is_stream: bool | None = None
-    _attr_extension: str | None = None
+    _current_track_tlid: int | None = None
+    _current_track_album_artist: str | None = None
+    _current_track_album_name: str | None = None
+    _current_track_artist: str | None = None
+    _current_track_duration: int | None = None
+    _current_track_extension: str | None = None
+    _current_track_image_url: str | None = None
+    _current_track_image_remotely_accessible: bool | None = None
+    _current_track_playlist_name: str | None = None
+    _current_track_position: int | None = None
+    _current_track_position_updated_at: datetime.datetime | None = None
+    _current_track_title: str | None = None
+    _current_track_is_stream: bool | None = None
+    _current_track_number: str | None = None
+    _current_track_uri: str | None = None
+    _attr_queue_position: int | None = None
+    _attr_queue_size: int | None = None
 
     def __init__(self):
-        """Initialize MopidyMedia"""
-        self.__clear()
+        """Initialize queue"""
+        self.queue = {}
+        self.clear_current_track()
 
-    def __clear(self):
-        """Reset all values"""
-        self._attr_track_uri = None
-        self._attr_track_source = None
-        self._attr_track_number = None
-        self._attr_track_duration = None
-        self._attr_media_title = None
-        self._attr_media_artist = None
-        self._attr_album_name = None
-        self._attr_album_artist = None
-        self._attr_media_position = None
-        self._attr_media_position_updated_at = None
-        self._attr_media_image_url = None
-        self._attr_is_stream = False
-        self._attr_extension = None
+    def __get_current_track_position(self):
+        """Get the position of the current track"""
+        try:
+            current_media_position = self.api.playback.get_time_position()
+        except reConnectionError as error:
+            _LOGGER.error(
+                "Cannot get current position"
+            )
+            _LOGGER.debug(str(error))
+
+        self.set_current_track_position(int(current_media_position / 1000))
+
+    def __get_current_track_stream_info(self):
+        """Get the current track stream info"""
+        try:
+            current_stream_title = self.api.playback.get_stream_title()
+        except reConnectionError as error:
+            _LOGGER.error(
+                "Cannot get current stream title"
+            )
+            _LOGGER.debug(str(error))
+            return
+
+        if self._current_track_tlid is not None and self.queue[self._current_track_tlid] is not None:
+            if current_stream_title is not None:
+                self.set_stream_title(current_stream_title)
+            else:
+                self._current_track_is_stream = False
+
+    def __get_track_image(self, uri=None):
+        if uri is None:
+            return
+
+        try:
+            current_image = self.api.library.get_images([uri])
+        except reConnectionError as error:
+            _LOGGER.error(
+                "Cannot get image for media"
+            )
+            _LOGGER.debug(str(error))
+
+        if (
+            current_image is not None
+            and uri in current_image
+            and len(current_image[uri]) > 0
+            and hasattr(current_image[uri][0], "uri")
+        ):
+            image_url = self.expand_url(
+                self.current_track_extension, current_image[uri][0].uri
+            )
+        else:
+            _LOGGER.warning("No image_url found for %s", uri)
+            image_url = None
+
+        return image_url
+
+    def __set_track_info(self, tlid, track_info):
+        """Update track information using tlid"""
+        if not isinstance(tlid, int):
+            _LOGGER.error("__set_track_info: tlid is invalid: %s", str(tlid))
+            return None
+
+        if tlid not in self.queue:
+            self.queue[tlid] = { "tlid": tlid }
+
+        self.queue[tlid].update(track_info)
+
+        return self.queue[tlid]
+
+    def clear_current_track(self):
         self._attr_current_track = None
+        self._current_track_tlid = None
+        self._current_track_album_artist = None
+        self._current_track_album_name = None
+        self._current_track_artist = None
+        self._current_track_duration = None
+        self._current_track_extension = None
+        self._current_track_image_url = None
+        self._current_track_image_remotely_accessible = None
+        self._current_track_playlist_name = None
+        self._current_track_position = None
+        self._current_track_position_updated_at = dt_util.utcnow()
+        self._current_track_title = None
+        self._current_track_is_stream = None
+        self._current_track_number = None
+        self._current_track_uri = None
 
-    def __expand_url(self, source, url):
+    def expand_url(self, extension, url):
         """Expand the URL with the mopidy base url and possibly a timestamp"""
         parsed_url = urlparse.urlparse(url)
         if parsed_url.netloc == "":
@@ -166,211 +239,254 @@ class MopidyMedia:
 
         return url
 
-    def clear_playlist(self):
-        """Clear the playlist"""
-        self._attr_playlist_name = None
-        self._playlist_track_uris = None
+    def parse_track_info(self, track, tlid=None, current=False):
+        """Parse the track info"""
+        track_info = { "tlid": tlid }
+        if hasattr(track, "uri"):
+            track_info["uri"] = track.uri
+            track_info["source"] = track.uri.partition(":")[0]
 
-    def get_stream(self):
-        try:
-            current_stream_title = self.api.playback.get_stream_title()
-        except reConnectionError as error:
-            _LOGGER.error(
-                "Cannot get current stream title"
+        if hasattr(track, "track_no"):
+            track_info["number"] = int(track.track_no)
+
+        if hasattr(track, "length"):
+            track_info["duration"] = int(track.length / 1000)
+
+        if hasattr(track, "album") and hasattr(track.album, "name"):
+            track_info["album_name"] = track.album.name
+
+        if hasattr(track, "artists"):
+            track_info["album_artist"] = ", ".join([x.name for x in track.artists])
+
+        if hasattr(track, "name"):
+            track_info["title"] = track.name
+
+        if hasattr(track, "artists"):
+            track_info["artist"] = ", ".join([x.name for x in track.artists])
+
+        self.__set_track_info(tlid, track_info)
+        if current:
+            self._current_track_tlid = tlid
+            self._current_track_uri = track_info.get("uri")
+            self._current_track_album_artist = track_info.get("album_artist")
+            self._current_track_album_name = track_info.get("album_name")
+            self._current_track_artist = track_info.get("artist")
+            self._current_track_duration = track_info.get("duration")
+            self._current_track_extension = track_info.get("source")
+            self._current_track_playlist_name = track_info.get("playlist_name")
+            self._current_track_title = track_info.get("title")
+            self._current_track_is_stream = track_info.get("is_stream")
+            self._current_track_number = track_info.get("number")
+
+        return track_info
+
+    def set_current_track_position(self, value):
+        """Set the media position"""
+        self._current_track_position = value
+        self._current_track_position_updated_at = dt_util.utcnow()
+
+    def set_local_url_base(self, value):
+        """Assign a url base"""
+        self.local_url_base = value
+
+    def set_stream_title(self, stream_title):
+        self._current_track_title = stream_title
+        self._current_track_is_stream = True
+        if self._current_track_tlid is not None:
+            self.__set_track_info(
+                self._current_track_tlid,
+                {
+                    "title": stream_title,
+                    "is_stream": True,
+                }
             )
-            _LOGGER.debug(str(error))
 
-        if current_stream_title is not None:
-            self._attr_is_stream = True
-            self._attr_media_title = current_stream_title
-            if self._attr_current_track is not None and hasattr(
-                self._attr_current_track,
-                "name"
-            ):
-                self._attr_media_artist = self._attr_current_track.name
+    def update(self):
+        self.update_queue_information()
+        self.update_tracks()
+        self.update_current_track()
 
-    def get_track(self):
-        """Get the current track info"""
+    def update_current_track(self, updater=None):
         try:
-            current_track = self.api.playback.get_current_track()
+            current_track = self.api.playback.get_current_tl_track()
             self._attr_current_track = current_track
         except reConnectionError as error:
             _LOGGER.error(
                 "Cannot get current track information"
             )
             _LOGGER.debug(str(error))
+            return
 
-        self.parse_track_info(current_track)
+        if hasattr(current_track, "track") and hasattr(current_track, "tlid"):
+            track_info = self.parse_track_info(
+                track=current_track.track,
+                tlid=current_track.tlid,
+                current=True
+                )
+            self.update_current_image_url()
 
-        self.get_image()
+            self.__get_current_track_position()
+            self.__get_current_track_stream_info()
 
-        if self._playlist_track_uris is not None and self.uri not in self._playlist_track_uris:
-            self.clear_playlist()
+        if updater is not None:
+            updater()
 
-        self.get_track_position()
+    def update_current_image_url(self, uri=None, updater=None):
+        """Update the current track image url"""
+        if uri is None:
+            uri = self._current_track_uri
 
-    def get_image(self):
+        self._current_track_image_url = self.__get_track_image(uri)
+        self._current_track_image_remotely_accessible = False
+
+        if updater is not None:
+            updater()
+
+    def update_tracks(self):
+        res = []
         try:
-            if self.uri is not None:
-                current_image = self.api.library.get_images([self.uri])
-            else:
-                current_image = None
+            res = self.api.tracklist.get_tl_tracks()
         except reConnectionError as error:
             _LOGGER.error(
-                "Cannot get image for media"
+                "An error ocurred getting the queue tracks for %s.",
+                self.hostname
             )
             _LOGGER.debug(str(error))
 
-        if (
-            current_image is not None
-            and self.uri in current_image
-            and len(current_image[self.uri]) > 0
-            and hasattr(current_image[self.uri][0], "uri")
-        ):
-            self._attr_media_image_url = self.__expand_url(
-                self.source, current_image[self.uri][0].uri
-            )
+        tlid_queue = [ x.tlid for x in res ]
+        purge_queue = []
+        for tlid in self.queue:
+            if tlid not in tlid_queue:
+                purge_queue.append(tlid)
 
-    def get_track_position(self):
-        """Get the position of the current track"""
+        index = 0
+        for el in res:
+            self.__set_track_info(
+                el.tlid,
+                {
+                    "uri": el.track.uri,
+                    "index": index,
+                })
+            index = index +1
+
+        for tlid in purge_queue:
+            del self.queue[tlid]
+
+    def update_queued_tracks(self, media_id, media_type, **kwargs):
+        """Update the queue with new information"""
+        self.update_tracks()
+        if media_type == "playlist":
+            if "tracks" not in kwargs:
+                return
+            res = self.api.playlists.lookup(media_id)
+            for tl_track in kwargs["tracks"]:
+                track_info = {
+                    "tlid": tl_track.tlid,
+                    "playlist_name": res.name,
+                    "playlist_uri": res.uri,
+                }
+                self.__set_track_info(tl_track.tlid, **track_info)
+
+    def update_queue_information(self, updater=None):
+        """Get the Mopidy Instance queue information"""
         try:
-            current_media_position = self.api.playback.get_time_position()
+            self._attr_queue_position = self.api.tracklist.index()
         except reConnectionError as error:
+            self._attr_is_available = False
             _LOGGER.error(
-                "Cannot get current position"
+                "An error ocurred getting the queue index for %s.",
+                self.hostname
             )
             _LOGGER.debug(str(error))
 
-        self.set_media_position(int(current_media_position / 1000))
+        try:
+            self._attr_queue_size = self.api.tracklist.get_length()
+        except reConnectionError as error:
+            self._attr_is_available = False
+            _LOGGER.error(
+                "An error ocurred getting the queue track list size for %s.",
+                self.hostname
+            )
+            _LOGGER.debug(str(error))
 
-    def parse_track_info(self, track):
-        """Parse the track info"""
-        if hasattr(track, "uri"):
-            self._attr_track_uri = track.uri
-            self._attr_extension = track.uri.partition(":")[0]
-            self._attr_track_source = track.uri.partition(":")[0]
-
-        if hasattr(track, "track_no"):
-            self._attr_track_number = int(track.track_no)
-
-        if hasattr(track, "length"):
-            self._attr_track_duration = int(track.length / 1000)
-
-        if hasattr(track, "album") and hasattr(track.album, "name"):
-            self._attr_album_name = track.album.name
-
-        if hasattr(track, "artists"):
-            self._attr_album_artist = ", ".join([x.name for x in track.artists])
-
-        if hasattr(track, "name"):
-            self._attr_media_title = track.name
-
-        if hasattr(track, "artists"):
-            self._attr_media_artist = ", ".join([x.name for x in track.artists])
-
-    def set_local_url_base(self, value):
-        """Assign a url base"""
-        self._attr_local_url_base = value
-
-    def set_media_position(self, value):
-        """Set the media position"""
-        self._attr_media_position = value
-        self._attr_media_position_updated_at = dt_util.utcnow()
-
-    def set_playlist(self, media_id):
-        """Set the playlist"""
-        res = self.api.playlists.lookup(media_id)
-        self._attr_playlist_name = res.name
-        self._playlist_track_uris = [x.uri for x in res.tracks]
-
-    def update(self):
-        """Update media information"""
-        self.__clear()
-        self.get_track()
-        self.get_stream()
+        if updater is not None:
+            updater()
 
     @property
-    def album_artist(self):
-        """Return the Album artists"""
-        return self._attr_album_artist
+    def current_track_album_artist(self):
+        """Return the album artist information about the current track"""
+        return self._current_track_album_artist
 
     @property
-    def album_name(self):
-        """Return the Album name"""
-        return self._attr_album_name
+    def current_track_album_name(self):
+        """Return the album name of the current track"""
+        return self._current_track_album_name
 
     @property
-    def artist(self):
-        """Return the current track artist(s)"""
-        return self._attr_media_artist
+    def current_track_artist(self):
+        """Return the artist of the current track"""
+        return self._current_track_artist
 
     @property
-    def duration(self):
+    def current_track_duration(self):
         """Return the duration of the current track"""
-        return self._attr_track_duration
+        return self._current_track_duration
 
     @property
-    def extension(self):
-        """Return the extension (service) used"""
-        return self._attr_extension
+    def current_track_extension(self):
+        """Return the mopidy extension of the current track"""
+        return self._current_track_extension
 
     @property
-    def image_remotely_accessible(self):
-        """Return whether image is remotely available"""
-        return False
+    def current_track_image_url(self):
+        """Return the cover art image url of the current track"""
+        return self._current_track_image_url
 
     @property
-    def image_url(self):
-        """Return the url of the playing track"""
-        return self._attr_media_image_url
+    def current_track_image_remotely_accessible(self):
+        """Return whether the image url is remotely accessible of the current track"""
+        # FIXME: Check how this works
+        return self._current_track_image_remotely_accessible
 
     @property
-    def is_stream(self):
-        """Return whether the track is a stream or not"""
-        return self._attr_is_stream
+    def current_track_playlist_name(self):
+        """Return the playlist name of the current track"""
+        return self._current_track_playlist_name
 
     @property
-    def local_url_base(self):
-        """Return the url base"""
-        return self._attr_local_url_base
+    def current_track_position(self):
+        """Return position of the current track in the queue"""
+        return self._current_track_position
 
-    # FIXME: need to figure out what to do with this...
     @property
-    def playlist_name(self):
-        """Return the current playlist"""
-        if self._attr_playlist_name is not None:
-            return self._attr_playlist_name
-        else:
-            return None
+    def current_track_position_updated_at(self):
+        """Return the update time of the position of the current track in the queue"""
+        return self._current_track_position_updated_at
+
+    @property
+    def current_track_title(self):
+        """Return the title of the current track"""
+        return self._current_track_title
+
+    @property
+    def current_track_number(self):
+        """Return the number of the current track in the album"""
+        return self._current_track_number
+
+    @property
+    def current_track_uri(self):
+        """Return the mopidy uri of the current track"""
+        return self._current_track_uri
+
+    @property
+    def size(self):
+        """Return the size of the current queue"""
+        return self._attr_queue_size
 
     @property
     def position(self):
-        """Return the position of the playing track/stream"""
-        return self._attr_media_position
-
-    @property
-    def position_updated_at(self):
-        """Return the position of the playing track/stream"""
-        return self._attr_media_position_updated_at
-
-    @property
-    def source(self):
-        return self._attr_track_source
-
-    @property
-    def title(self):
-        """Return the current track/stream title"""
-        return self._attr_media_title
-
-    @property
-    def track_number(self):
-        """Return the track number"""
-        return self._attr_track_number
-
-    @property
-    def uri(self):
-        """Return the URI of the current track"""
-        return self._attr_track_uri
+        """Return the index of the currently playing track in the tracklist"""
+        return self._attr_queue_position
 
 class MopidySpeaker:
     """Representation of Mopidy Speaker"""
@@ -380,6 +496,7 @@ class MopidySpeaker:
     port: int | None = None
     api: MopidyAPI | None = None
     snapshot: dict | None = None
+    queue: MopidyQueue | None = None
 
     _attr_is_available: bool | None = None
     _attr_software_version: str | None = None
@@ -391,8 +508,6 @@ class MopidySpeaker:
     _attr_state: MediaPlayerState | None = None
     _attr_repeat: RepeatMode | str | None = None
     _attr_shuffle: bool | None = None
-    _attr_tracklist: list | None = None
-    _attr_queue_position: int | None = None
     _attr_snapshot_at: datetime.datetime | None = None
 
     _attr_supported_features = (
@@ -426,13 +541,13 @@ class MopidySpeaker:
             self.port = port
 
         self._attr_is_available = False
-        self.media = MopidyMedia()
-        self.media.set_local_url_base(f"http://{hostname}:{port}")
+        self.queue = MopidyQueue()
+        self.queue.set_local_url_base(f"http://{hostname}:{port}")
         self.library = MopidyLibrary()
 
         self.__connect()
         self.entity = None
-        self.media.api = self.api
+        self.queue.api = self.api
         self.library.api = self.api
 
     def __clear(self):
@@ -446,8 +561,6 @@ class MopidySpeaker:
         self._attr_state = None
         self._attr_repeat = None
         self._attr_shuffle = None
-        self._attr_tracklist = None
-        self._attr_queue_position = None
         self._attr_snapshot_at = None
         self._attr_is_available = False
 
@@ -462,15 +575,13 @@ class MopidySpeaker:
 
         # NOTE: the callbacks can be found at
         #     https://docs.mopidy.com/en/latest/api/core/#mopidy.core.CoreListener
+        # not using playlist_changed, playlist_deleted, playlists_loaded, track_playback_ended
+        # as they are updated on update
         self.api.add_callback('options_changed', self.__ws_options_changed)
         self.api.add_callback('mute_changed', self.__ws_mute_changed)
         self.api.add_callback('playback_state_changed', self.__ws_playback_state_changed)
-        self.api.add_callback('playlist_changed', self.__ws_playlist_changed)
-        self.api.add_callback('playlist_deleted', self.__ws_playlist_deleted)
-        self.api.add_callback('playlists_loaded', self.__ws_playlists_loaded)
         self.api.add_callback('seeked', self.__ws_seeked)
         self.api.add_callback('stream_title_changed', self.__ws_stream_title_changed)
-        #self.api.add_callback('track_playback_ended', self.__ws_track_playback_ended)
         self.api.add_callback('track_playback_paused', self.__ws_track_playback_paused)
         self.api.add_callback('track_playback_resumed', self.__ws_track_playback_resumed)
         self.api.add_callback('track_playback_started', self.__ws_track_playback_started)
@@ -498,27 +609,6 @@ class MopidySpeaker:
             self._attr_is_available = False
             _LOGGER.error(
                 "An error ocurred getting consume mode for %s.",
-                self.hostname
-            )
-            _LOGGER.debug(str(error))
-
-    def __get_queue_information(self):
-        """Get the Mopidy Instance queue information"""
-        try:
-            self._attr_queue_position = self.api.tracklist.index()
-        except reConnectionError as error:
-            self._attr_is_available = False
-            _LOGGER.error(
-                "An error ocurred getting the queue index for %s.",
-                self.hostname
-            )
-            _LOGGER.debug(str(error))
-        try:
-            self._attr_tracklist = self.api.tracklist.get_tracks()
-        except reConnectionError as error:
-            self._attr_is_available = False
-            _LOGGER.error(
-                "An error ocurred getting the queue track list for %s.",
                 self.hostname
             )
             _LOGGER.debug(str(error))
@@ -667,23 +757,25 @@ class MopidySpeaker:
 
     def media_play(self, index=None):
         """Play the current media"""
-        try:
-            current_tracks = self.api.tracklist.get_tl_tracks()
-            self.api.playback.play(
-                tlid=current_tracks[int(index)].tlid
-            )
-
-        except Exception as error:
-            _LOGGER.error("The specified index %s could not be resolved", index)
-            _LOGGER.debug(str(error))
+        if index is None:
             self.api.playback.play()
+        else:
+            try:
+                current_tracks = self.api.tracklist.get_tl_tracks()
+                self.api.playback.play(
+                    tlid=current_tracks[int(index)].tlid
+                )
+
+            except Exception as error:
+                _LOGGER.error("The specified index %s could not be resolved", index)
+                _LOGGER.debug(str(error))
 
     def media_previous_track(self):
         """Play previous track"""
         self.api.playback.previous()
 
     def media_seek(self, value):
-        """Play from a specific pointin time"""
+        """Play from a specific point in time"""
         self.api.playback.seek(value)
 
     def media_stop(self):
@@ -696,51 +788,51 @@ class MopidySpeaker:
         enqueue = kwargs.get(ATTR_MEDIA_ENQUEUE, MediaPlayerEnqueue.REPLACE)
 
         media_uris = [media_id]
-        self.media.clear_playlist()
         if media_type == MediaClass.PLAYLIST:
             media_uris = self.library.get_playlist_track_uris(media_id)
-            self.media.set_playlist(media_id)
 
         if media_type == MediaClass.DIRECTORY:
             media_uris = [ x.uri for x in self.library.browse(media_id)]
 
         if enqueue == MediaPlayerEnqueue.ADD:
             # Add media uris to end of the queue
-            self.queue_tracks(media_uris)
+            queued = self.queue_tracks(media_uris)
             if self.state != MediaPlayerState.PLAYING:
                 self.media_play()
 
         elif enqueue == MediaPlayerEnqueue.NEXT:
             # Add media uris to queue after current playing track
             index = self.queue_position
-            self.queue_tracks(media_uris, at_position=index+1)
+            queued = self.queue_tracks(media_uris, at_position=index+1)
             if self.state != MediaPlayerState.PLAYING:
                 self.media_play()
 
         elif enqueue == MediaPlayerEnqueue.PLAY:
             # Insert media uris before current playing track into queue and play first of new uris
             index = self.queue_position
-            self.queue_tracks(media_uris, at_position=index)
+            queued = self.queue_tracks(media_uris, at_position=index)
             self.media_play(index)
 
         elif enqueue == MediaPlayerEnqueue.REPLACE:
             # clear queue and replace with media uris
             self.media_stop()
             self.clear_queue()
-            self.queue_tracks(media_uris)
+            queued = self.queue_tracks(media_uris)
             self.media_play()
 
         else:
             _LOGGER.error("No media for %s (%s) could be found.", media_id, media_type)
             raise MissingMediaInformation
 
+        self.queue.update_queued_tracks(media_id, media_type, tracks=queued)
+
     def queue_tracks(self, uris, at_position=None):
         """Queue tracks"""
+        ret = []
         if len(uris) > 0:
-            self.api.tracklist.add(uris=uris, at_position=at_position)
-            # NOTE: Is this needed if we perform async updates?
-            self._attr_tracklist = self.api.tracklist.get_tracks()
-            self._attr_queue_position = self.api.tracklist.index()
+            ret = self.api.tracklist.add(uris=uris, at_position=at_position)
+            self.queue.update_tracks()
+        return ret
 
     def restore_snapshot(self):
         """Restore a snapshot"""
@@ -857,7 +949,7 @@ class MopidySpeaker:
             return
 
         if not self.api.wsclient.wsthread.is_alive():
-            _LOGGER.debug("The websocket connection was interrupted, re-create connection")
+            _LOGGER.warning("The websocket connection was interrupted, re-create connection")
             del self.api
             self.__connect()
 
@@ -866,11 +958,10 @@ class MopidySpeaker:
         self.__get_source_list()
         self.__get_volume()
         self.__get_shuffle_mode()
-        self.__get_queue_information()
         self.__get_state()
         self.__get_repeat_mode()
 
-        self.media.update()
+        self.queue.update()
 
     def volume_down(self):
         """Turn down the volume"""
@@ -885,23 +976,20 @@ class MopidySpeaker:
         """Mute state has changed"""
         self._attr_is_volume_muted = state_info.mute
         self.entity.async_write_ha_state()
-        self.hass.async_add_executor_job(
-            partial(self.__get_volume)
-        )
 
     @callback
     def __ws_options_changed(self, options_info):
         """speaker options have changed"""
         self.hass.async_add_executor_job(
-            partial(self.__get_consume_mode)
+            self.__get_consume_mode
         )
         self.entity.async_write_ha_state()
         self.hass.async_add_executor_job(
-            partial(self.__get_repeat_mode)
+            self.__get_repeat_mode
         )
         self.entity.async_write_ha_state()
         self.hass.async_add_executor_job(
-            partial(self.__get_shuffle_mode)
+            self.__get_shuffle_mode
         )
         self.entity.async_write_ha_state()
 
@@ -909,52 +997,30 @@ class MopidySpeaker:
     def __ws_playback_state_changed(self, state_info):
         """playback has changed"""
         self._attr_state = self.__eval_state(state_info.new_state)
+        if state_info.new_state == "stopped":
+            self.queue.clear_current_track()
+        self.entity.async_write_ha_state()
+
         if state_info.new_state == "playing":
             self.hass.async_add_executor_job(
-                partial(self.media.get_track)
+                self.queue.update_current_track, self.entity.async_write_ha_state
             )
-
-        self.entity.async_write_ha_state()
-
-    @callback
-    def __ws_playlist_changed(self, playlist_info):
-        """Playlist has changed"""
-        self.hass.async_add_executor_job(
-            partial(self.__get_source_list)
-        )
-
-        self.entity.async_write_ha_state()
-
-    @callback
-    def __ws_playlist_deleted(self, playlist_info):
-        """Playlist was deleted"""
-        self.hass.async_add_executor_job(
-            partial(self.__get_source_list)
-        )
-        self.entity.async_write_ha_state()
-
-    @callback
-    def __ws_playlists_loaded(self):
-        """Playlists were (re)loaded"""
-        self.hass.async_add_executor_job(
-            partial(self.__get_source_list)
-        )
-        self.entity.async_write_ha_state()
 
     @callback
     def __ws_seeked(self, seek_info):
         """Track time position has changed"""
-        self.hass.async_add_executor_job(
-            partial(self.media.set_media_position, int(seek_info.time_position / 1000))
-        )
+        self.queue.set_current_track_position(int(seek_info.time_position / 1000))
         self.entity.async_write_ha_state()
 
     @callback
     def __ws_stream_title_changed(self, stream_info):
         """Stream title changed"""
-        self.media._attr_is_stream = True
-        self.media._attr_media_title = stream_info.title
+        self.queue.set_stream_title(stream_info.title)
         self.entity.async_write_ha_state()
+
+        self.hass.async_add_executor_job(
+            self.queue.update_current_track, self.entity.async_write_ha_state
+        )
 
     @callback
     def __ws_track_playback_paused(self, playback_state):
@@ -966,37 +1032,43 @@ class MopidySpeaker:
     def __ws_track_playback_resumed(self, playback_state):
         """Playback of paused track was resumed"""
         self._attr_state = self.__eval_state("playing")
-        self.media.parse_track_info(playback_state.tl_track.track)
-        self.media.set_media_position(int(playback_state.time_position/1000))
+
+        self.queue.parse_track_info(
+            track = playback_state.tl_track.track,
+            tlid = playback_state.tl_track.tlid,
+            current = True
+        )
+        self.queue.set_current_track_position(int(playback_state.time_position/1000))
         self.entity.async_write_ha_state()
 
     @callback
     def __ws_track_playback_started(self, playback_state):
         """Playback of track started"""
-        _LOGGER.debug(str(playback_state))
-        self.media.parse_track_info(playback_state.tl_track.track)
-        self.entity.async_write_ha_state()
-        self.hass.async_add_executor_job(
-            partial(self.media.get_image)
+        self.queue.parse_track_info(
+            track = playback_state.tl_track.track,
+            tlid = playback_state.tl_track.tlid,
+            current = True
         )
         self.entity.async_write_ha_state()
+        self.hass.async_add_executor_job(
+            self.queue.update_current_image_url, playback_state.tl_track.track.uri, self.entity.async_write_ha_state
+        )
+
+        self.hass.async_add_executor_job(
+            self.queue.update_current_track, self.entity.async_write_ha_state
+        )
 
     @callback
     def __ws_tracklist_changed(self, tracklist_info):
         """The queue has changed"""
         self.hass.async_add_executor_job(
-            partial(self.__get_queue_information)
+            self.queue.update_queue_information, self.entity.async_write_ha_state
         )
-        self.entity.async_write_ha_state()
 
     @callback
     def __ws_volume_changed(self, volume_info):
         """The volume was changed"""
         self._attr_volume_level = volume_info.volume
-        self.entity.async_write_ha_state()
-        self.hass.async_add_executor_job(
-            partial(self.__get_volume)
-        )
         self.entity.async_write_ha_state()
 
     @property
@@ -1023,19 +1095,6 @@ class MopidySpeaker:
     def is_shuffled(self):
         """Return whether the queue is shuffled"""
         return self._attr_shuffle
-
-    @property
-    def queue_position(self):
-        """Return the index of the currently playing track in the tracklist"""
-        return self._attr_queue_position
-
-    @property
-    def queue_size(self):
-        """Return the size of the current playing queue"""
-        if self._attr_tracklist is None:
-            return None
-        else:
-            return len(self._attr_tracklist)
 
     @property
     def repeat(self):
@@ -1065,21 +1124,6 @@ class MopidySpeaker:
     def supported_uri_schemes(self):
         """Return a list of supported URI schemes"""
         return self._attr_supported_uri_schemes
-
-    @property
-    def tracklist(self):
-        """Return the current queue tracklist"""
-        return self._attr_tracklist
-
-    @property
-    def tracklist_index(self):
-        """Return the index of the currently playing track in the tracklist"""
-        return self._attr_queue_position
-
-    @property
-    def tracklist_uris(self):
-        """Return a list of track uris in the queue"""
-        return [t.uri for t in self.tracklist]
 
     @property
     def volume_level(self):
