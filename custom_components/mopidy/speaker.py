@@ -230,10 +230,12 @@ class MopidyQueue:
         parsed_url = urlparse.urlparse(url)
         if parsed_url.netloc == "":
             url = f"{self.local_url_base}{url}"
+
+        # Force the browser to reload the image once per day
         query = dict(urlparse.parse_qsl(parsed_url.query))
-        if query.get("t") is None:
+        if query.get("mopt") is None:
             url_parts = list(urlparse.urlparse(url))
-            query["t"] = int(time.time() * 1000)
+            query["mopt"] = datetime.datetime.now().strftime("%Y%m%d")
             url_parts[4] = urlencode(query)
             url = urlparse.urlunparse(url_parts)
 
