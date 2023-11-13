@@ -11,6 +11,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - expanding the url will add a timestamp based on the day instead of epoch, causing it to reload daily instead of every time the image is refreshed (which is every 10 seconds)
 - correct snapshotting variables/methods
 - alphabetize `extra_state_attributes` variables
+- retrieve the correct current track information
+- fix queue variables for `media_play`
 
 ## [2.2.0] - 2023-11-11
 
