@@ -450,17 +450,17 @@ class MopidyMediaPlayerEntity(MediaPlayerEntity):
         """Return entity specific state attributes"""
         attributes: dict[str, Any] = {}
 
-        if self.speaker.queue.position is not None:
-            attributes["queue_position"] = self.speaker.queue.position
-
-        if self.speaker.queue.size is not None:
-            attributes["queue_size"] = self.speaker.queue.size
-
         if self.speaker.consume_mode is not None:
             attributes["consume_mode"] = self.speaker.consume_mode
 
         if self.speaker.queue.current_track_extension is not None:
             attributes["mopidy_extension"] = self.speaker.queue.current_track_extension
+
+        if self.speaker.queue.position is not None:
+            attributes["queue_position"] = self.speaker.queue.position
+
+        if self.speaker.queue.size is not None:
+            attributes["queue_size"] = self.speaker.queue.size
 
         if self.speaker.snapshot_taken_at is not None:
             attributes["snapshot_taken_at"] = self.speaker.snapshot_taken_at
