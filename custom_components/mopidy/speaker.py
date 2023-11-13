@@ -481,6 +481,11 @@ class MopidyQueue:
         return self._current_track_uri
 
     @property
+    def uri_list(self):
+        """Return a list of uris of the current queue"""
+        return [ self.queue[x]["uri"] for x in self.queue ]
+
+    @property
     def size(self):
         """Return the size of the current queue"""
         return self._attr_queue_size
@@ -551,6 +556,7 @@ class MopidySpeaker:
         self.entity = None
         self.queue.api = self.api
         self.library.api = self.api
+        self._attr_snapshot_at = None
 
     def __clear(self):
         """Reset all Values"""
@@ -563,7 +569,6 @@ class MopidySpeaker:
         self._attr_state = None
         self._attr_repeat = None
         self._attr_shuffle = None
-        self._attr_snapshot_at = None
         self._attr_is_available = False
 
     def __connect(self):
@@ -843,13 +848,13 @@ class MopidySpeaker:
             return
         self.media_stop()
         self.clear_queue()
-        self.queue_tracks(self.snapshot.get("tracklist",[]))
+        self.queue_tracks(self.snapshot.get("queue_list",[]))
         self.set_volume(self.snapshot.get("volume"))
         self.set_mute(self.snapshot.get("muted"))
         if self.snapshot.get("state", MediaPlayerState.IDLE) in [MediaPlayerState.PLAYING, MediaPlayerState.PAUSED]:
             current_tracks = self.api.tracklist.get_tl_tracks()
             self.api.playback.play(
-                tlid=current_tracks[self.snapshot.get("tracklist_index")].tlid
+                tlid=current_tracks[self.snapshot.get("queue_index")].tlid
             )
 
             count = 0
@@ -932,13 +937,13 @@ class MopidySpeaker:
         self.update()
         self._attr_snapshot_at = dt_util.utcnow()
         self.snapshot = {
-            "mediaposition": self.media.position,
+            "mediaposition": self.queue.current_track_position,
             "muted": self.is_muted,
             "repeat_mode": self.repeat,
             "shuffled": self.is_shuffled,
             "state": self.state,
-            "tracklist": self.tracklist_uris,
-            "tracklist_index": self.queue_position,
+            "queue_list": self.queue.uri_list,
+            "queue_index": self.queue.position,
             "volume": self.volume_level,
         }
 
