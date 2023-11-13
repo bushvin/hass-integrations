@@ -230,10 +230,12 @@ class MopidyQueue:
         parsed_url = urlparse.urlparse(url)
         if parsed_url.netloc == "":
             url = f"{self.local_url_base}{url}"
+
+        # Force the browser to reload the image once per day
         query = dict(urlparse.parse_qsl(parsed_url.query))
-        if query.get("t") is None:
+        if query.get("mopt") is None:
             url_parts = list(urlparse.urlparse(url))
-            query["t"] = int(time.time() * 1000)
+            query["mopt"] = datetime.datetime.now().strftime("%Y%m%d")
             url_parts[4] = urlencode(query)
             url = urlparse.urlunparse(url_parts)
 
@@ -267,16 +269,16 @@ class MopidyQueue:
         self.__set_track_info(tlid, track_info)
         if current:
             self._current_track_tlid = tlid
-            self._current_track_uri = track_info.get("uri")
-            self._current_track_album_artist = track_info.get("album_artist")
-            self._current_track_album_name = track_info.get("album_name")
-            self._current_track_artist = track_info.get("artist")
-            self._current_track_duration = track_info.get("duration")
-            self._current_track_extension = track_info.get("source")
-            self._current_track_playlist_name = track_info.get("playlist_name")
-            self._current_track_title = track_info.get("title")
-            self._current_track_is_stream = track_info.get("is_stream")
-            self._current_track_number = track_info.get("number")
+            self._current_track_uri = self.queue[tlid].get("uri")
+            self._current_track_album_artist = self.queue[tlid].get("album_artist")
+            self._current_track_album_name = self.queue[tlid].get("album_name")
+            self._current_track_artist = self.queue[tlid].get("artist")
+            self._current_track_duration = self.queue[tlid].get("duration")
+            self._current_track_extension = self.queue[tlid].get("source")
+            self._current_track_playlist_name = self.queue[tlid].get("playlist_name")
+            self._current_track_title = self.queue[tlid].get("title")
+            self._current_track_is_stream = self.queue[tlid].get("is_stream")
+            self._current_track_number = self.queue[tlid].get("number")
 
         return track_info
 
@@ -385,7 +387,7 @@ class MopidyQueue:
                     "playlist_name": res.name,
                     "playlist_uri": res.uri,
                 }
-                self.__set_track_info(tl_track.tlid, **track_info)
+                self.__set_track_info(tl_track.tlid, track_info)
 
     def update_queue_information(self, updater=None):
         """Get the Mopidy Instance queue information"""
@@ -479,6 +481,11 @@ class MopidyQueue:
         return self._current_track_uri
 
     @property
+    def uri_list(self):
+        """Return a list of uris of the current queue"""
+        return [ self.queue[x]["uri"] for x in self.queue ]
+
+    @property
     def size(self):
         """Return the size of the current queue"""
         return self._attr_queue_size
@@ -549,6 +556,7 @@ class MopidySpeaker:
         self.entity = None
         self.queue.api = self.api
         self.library.api = self.api
+        self._attr_snapshot_at = None
 
     def __clear(self):
         """Reset all Values"""
@@ -561,7 +569,6 @@ class MopidySpeaker:
         self._attr_state = None
         self._attr_repeat = None
         self._attr_shuffle = None
-        self._attr_snapshot_at = None
         self._attr_is_available = False
 
     def __connect(self):
@@ -802,14 +809,14 @@ class MopidySpeaker:
 
         elif enqueue == MediaPlayerEnqueue.NEXT:
             # Add media uris to queue after current playing track
-            index = self.queue_position
+            index = self.queue.position
             queued = self.queue_tracks(media_uris, at_position=index+1)
             if self.state != MediaPlayerState.PLAYING:
                 self.media_play()
 
         elif enqueue == MediaPlayerEnqueue.PLAY:
             # Insert media uris before current playing track into queue and play first of new uris
-            index = self.queue_position
+            index = self.queue.position
             queued = self.queue_tracks(media_uris, at_position=index)
             self.media_play(index)
 
@@ -841,13 +848,13 @@ class MopidySpeaker:
             return
         self.media_stop()
         self.clear_queue()
-        self.queue_tracks(self.snapshot.get("tracklist",[]))
+        self.queue_tracks(self.snapshot.get("queue_list",[]))
         self.set_volume(self.snapshot.get("volume"))
         self.set_mute(self.snapshot.get("muted"))
         if self.snapshot.get("state", MediaPlayerState.IDLE) in [MediaPlayerState.PLAYING, MediaPlayerState.PAUSED]:
             current_tracks = self.api.tracklist.get_tl_tracks()
             self.api.playback.play(
-                tlid=current_tracks[self.snapshot.get("tracklist_index")].tlid
+                tlid=current_tracks[self.snapshot.get("queue_index")].tlid
             )
 
             count = 0
@@ -930,13 +937,13 @@ class MopidySpeaker:
         self.update()
         self._attr_snapshot_at = dt_util.utcnow()
         self.snapshot = {
-            "mediaposition": self.media.position,
+            "mediaposition": self.queue.current_track_position,
             "muted": self.is_muted,
             "repeat_mode": self.repeat,
             "shuffled": self.is_shuffled,
             "state": self.state,
-            "tracklist": self.tracklist_uris,
-            "tracklist_index": self.queue_position,
+            "queue_list": self.queue.uri_list,
+            "queue_index": self.queue.position,
             "volume": self.volume_level,
         }
 
