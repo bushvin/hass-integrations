@@ -4,6 +4,19 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.2.2] - 2024-01-06
+
+Happy New Year!
+
+### Changed
+
+- bumped `mopidyapi` version requirement to 1.1.0
+
+### Fixed
+
+- default `media_player` properties changed to `cached_property` types
+
+
 ## [2.2.1] - 2023-11-13
 
 ### Fixed

@@ -6,6 +6,7 @@ import re
 import time
 import urllib.parse as urlparse
 from typing import Any
+import datetime as dt
 
 import urllib.parse as urlparse
 from urllib.parse import parse_qs
@@ -486,6 +487,114 @@ class MopidyMediaPlayerEntity(MediaPlayerEntity):
     def name(self) -> str:
         """Return the name of the entity."""
         return self.device_name
+
+    @property
+    def state(self) -> MediaPlayerState | None:
+        """State of the player."""
+        return self._attr_state
+
+    @property
+    def volume_level(self) -> float | None:
+        """Volume level of the media player (0..1)."""
+        return self._attr_volume_level
+
+    @property
+    def is_volume_muted(self) -> bool | None:
+        """Boolean if volume is currently muted."""
+        return self._attr_is_volume_muted
+
+    @property
+    def media_content_id(self) -> str | None:
+        """Content ID of current playing media."""
+        return self._attr_media_content_id
+
+    @property
+    def media_content_type(self) -> MediaType | str | None:
+        """Content type of current playing media."""
+        return self._attr_media_content_type
+
+    @property
+    def media_duration(self) -> int | None:
+        """Duration of current playing media in seconds."""
+        return self._attr_media_duration
+
+    @property
+    def media_position(self) -> int | None:
+        """Position of current playing media in seconds."""
+        return self._attr_media_position
+
+    @property
+    def media_position_updated_at(self) -> dt.datetime | None:
+        """When was the position of the current playing media valid.
+
+        Returns value from homeassistant.util.dt.utcnow().
+        """
+        return self._attr_media_position_updated_at
+
+    @property
+    def media_image_url(self) -> str | None:
+        """Image url of current playing media."""
+        return self._attr_media_image_url
+
+    @property
+    def media_image_remotely_accessible(self) -> bool:
+        """If the image url is remotely accessible."""
+        return self._attr_media_image_remotely_accessible
+
+    @property
+    def media_title(self) -> str | None:
+        """Title of current playing media."""
+        return self._attr_media_title
+
+    @property
+    def media_artist(self) -> str | None:
+        """Artist of current playing media, music track only."""
+        return self._attr_media_artist
+
+    @property
+    def media_album_name(self) -> str | None:
+        """Album name of current playing media, music track only."""
+        return self._attr_media_album_name
+
+    @property
+    def media_album_artist(self) -> str | None:
+        """Album artist of current playing media, music track only."""
+        return self._attr_media_album_artist
+
+    @property
+    def media_track(self) -> int | None:
+        """Track number of current playing media, music track only."""
+        return self._attr_media_track
+
+    @property
+    def media_playlist(self) -> str | None:
+        """Title of Playlist currently playing."""
+        return self._attr_media_playlist
+
+    @property
+    def source(self) -> str | None:
+        """Name of the current input source."""
+        return self._attr_source
+
+    @property
+    def source_list(self) -> list[str] | None:
+        """List of available input sources."""
+        return self._attr_source_list
+
+    @property
+    def shuffle(self) -> bool | None:
+        """Boolean if shuffle is enabled."""
+        return self._attr_shuffle
+
+    @property
+    def repeat(self) -> RepeatMode | str | None:
+        """Return current repeat mode."""
+        return self._attr_repeat
+
+    @property
+    def supported_features(self) -> MediaPlayerEntityFeature:
+        """Flag media player features that are supported."""
+        return self._attr_supported_features
 
     @property
     def unique_id(self) -> str:
