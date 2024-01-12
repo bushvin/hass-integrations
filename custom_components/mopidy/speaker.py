@@ -188,7 +188,7 @@ class MopidyQueue:
             image_url = self.expand_url(
                 self.current_track_extension, current_image[uri][0].uri
             )
-        elif (self.queue[tlid].get("is_stream")):
+        elif (self._current_track_is_stream):
             image_url = None
         else:
             _LOGGER.warning("No image_url found for %s", uri)
