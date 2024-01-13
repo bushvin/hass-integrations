@@ -332,105 +332,6 @@ class MopidyMediaPlayerEntity(MediaPlayerEntity):
         self.speaker.volume_up()
 
     @property
-    def _attr_is_volume_muted(self):
-        if self.speaker is None:
-            return None
-        else:
-            return self.speaker.is_muted
-
-    @property
-    def _attr_media_album_artist(self):
-        return self.speaker.queue.current_track_album_artist
-
-    @property
-    def _attr_media_album_name(self):
-        return self.speaker.queue.current_track_album_name
-
-    @property
-    def _attr_media_artist(self):
-        return self.speaker.queue.current_track_artist
-
-    @property
-    def _attr_media_content_id(self):
-        return self.speaker.queue.current_track_uri
-
-    @property
-    def _attr_media_duration(self):
-        return self.speaker.queue.current_track_duration
-
-    @property
-    def _attr_media_image_url(self):
-        return self.speaker.queue.current_track_image_url
-
-    @property
-    def _attr_media_image_remotely_accessible(self):
-        return self.speaker.queue.current_track_image_remotely_accessible
-
-    @property
-    def _attr_media_playlist(self):
-        return self.speaker.queue.current_track_playlist_name
-
-    @property
-    def _attr_media_position(self):
-        return self.speaker.queue.current_track_position
-
-    @property
-    def _attr_media_position_updated_at(self):
-        return self.speaker.queue.current_track_position_updated_at
-
-    @property
-    def _attr_media_title(self):
-        return self.speaker.queue.current_track_title
-
-    @property
-    def _attr_media_track(self):
-        return self.speaker.queue.current_track_number
-
-    @property
-    def _attr_repeat(self):
-        if self.speaker is None:
-            return None
-        else:
-            return self.speaker.repeat
-
-    @property
-    def _attr_source_list(self):
-        if self.speaker is None:
-            return None
-        else:
-            return self.speaker.source_list
-
-    @property
-    def _attr_shuffle(self):
-        if self.speaker is None:
-            return None
-        else:
-            return self.speaker.is_shuffled
-
-    @property
-    def _attr_supported_features(self):
-        if self.speaker is None:
-            return None
-        else:
-            return self.speaker.features
-
-    @property
-    def _attr_state(self):
-        if self.speaker is None:
-            return None
-        else:
-            return self.speaker.state
-
-    @property
-    def _attr_volume_level(self):
-        if self.speaker is None:
-            return None
-        elif self.speaker.volume_level is None:
-            return None
-        else:
-            return float(self.speaker.volume_level/100)
-
-    @property
     def available(self) -> bool:
         """Return True if entity is available."""
         return self.speaker.is_available
@@ -491,22 +392,33 @@ class MopidyMediaPlayerEntity(MediaPlayerEntity):
     @property
     def state(self) -> MediaPlayerState | None:
         """State of the player."""
-        return self._attr_state
+        if self.speaker is None:
+            return None
+        else:
+            return self.speaker.state
 
     @property
     def volume_level(self) -> float | None:
         """Volume level of the media player (0..1)."""
-        return self._attr_volume_level
+        if self.speaker is None:
+            return None
+        elif self.speaker.volume_level is None:
+            return None
+        else:
+            return float(self.speaker.volume_level/100)
 
     @property
     def is_volume_muted(self) -> bool | None:
         """Boolean if volume is currently muted."""
-        return self._attr_is_volume_muted
+        if self.speaker is None:
+            return None
+        else:
+            return self.speaker.is_muted
 
     @property
     def media_content_id(self) -> str | None:
         """Content ID of current playing media."""
-        return self._attr_media_content_id
+        return self.speaker.queue.current_track_uri
 
     @property
     def media_content_type(self) -> MediaType | str | None:
@@ -516,12 +428,12 @@ class MopidyMediaPlayerEntity(MediaPlayerEntity):
     @property
     def media_duration(self) -> int | None:
         """Duration of current playing media in seconds."""
-        return self._attr_media_duration
+        return self.speaker.queue.current_track_duration
 
     @property
     def media_position(self) -> int | None:
         """Position of current playing media in seconds."""
-        return self._attr_media_position
+        return self.speaker.queue.current_track_position
 
     @property
     def media_position_updated_at(self) -> dt.datetime | None:
@@ -529,72 +441,85 @@ class MopidyMediaPlayerEntity(MediaPlayerEntity):
 
         Returns value from homeassistant.util.dt.utcnow().
         """
-        return self._attr_media_position_updated_at
+        return self.speaker.queue.current_track_position_updated_at
 
     @property
     def media_image_url(self) -> str | None:
         """Image url of current playing media."""
-        return self._attr_media_image_url
+        return self.speaker.queue.current_track_image_url
 
     @property
     def media_image_remotely_accessible(self) -> bool:
         """If the image url is remotely accessible."""
-        return self._attr_media_image_remotely_accessible
+        return self.speaker.queue.current_track_image_remotely_accessible
 
     @property
     def media_title(self) -> str | None:
         """Title of current playing media."""
-        return self._attr_media_title
+        return self.speaker.queue.current_track_title
 
     @property
     def media_artist(self) -> str | None:
         """Artist of current playing media, music track only."""
-        return self._attr_media_artist
+        return self.speaker.queue.current_track_artist
 
     @property
     def media_album_name(self) -> str | None:
         """Album name of current playing media, music track only."""
-        return self._attr_media_album_name
+        return self.speaker.queue.current_track_album_name
 
     @property
     def media_album_artist(self) -> str | None:
         """Album artist of current playing media, music track only."""
-        return self._attr_media_album_artist
+        return self.speaker.queue.current_track_album_artist
 
     @property
     def media_track(self) -> int | None:
         """Track number of current playing media, music track only."""
-        return self._attr_media_track
+        return self.speaker.queue.current_track_number
 
     @property
     def media_playlist(self) -> str | None:
         """Title of Playlist currently playing."""
-        return self._attr_media_playlist
+        return self.speaker.queue.current_track_playlist_name
 
     @property
     def source(self) -> str | None:
         """Name of the current input source."""
+        # FIXME: DO we need to look at this?
         return self._attr_source
 
     @property
     def source_list(self) -> list[str] | None:
         """List of available input sources."""
-        return self._attr_source_list
+        if self.speaker is None:
+            return None
+        else:
+            return self.speaker.source_list
 
     @property
     def shuffle(self) -> bool | None:
         """Boolean if shuffle is enabled."""
-        return self._attr_shuffle
+        if self.speaker is None:
+            return None
+        else:
+            return self.speaker.is_shuffled
 
     @property
     def repeat(self) -> RepeatMode | str | None:
         """Return current repeat mode."""
-        return self._attr_repeat
+        if self.speaker is None:
+            return None
+        else:
+            return self.speaker.repeat
 
     @property
     def supported_features(self) -> MediaPlayerEntityFeature:
         """Flag media player features that are supported."""
-        return self._attr_supported_features
+        if self.speaker is None:
+            return None
+        else:
+            return self.speaker.features
 
     @property
     def unique_id(self) -> str:
@@ -606,7 +531,7 @@ class MopidyMediaPlayerEntity(MediaPlayerEntity):
 
         self.speaker.update()
 
-        if self._attr_state is None:
+        if self.state is None:
             _LOGGER.error(f"{self.entity_id} is unavailable")
             return
 
