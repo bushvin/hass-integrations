@@ -234,6 +234,9 @@ class MopidyMediaPlayerEntity(MediaPlayerEntity):
             partial(self.speaker.play_media , media_type, media_id, **kwargs)
         )
 
+    def force_update_ha_state(self):
+        self.async_schedule_update_ha_state(force_refresh=True)
+
     def clear_playlist(self) -> None:
         """Clear players playlist."""
         self.speaker.clear_queue()

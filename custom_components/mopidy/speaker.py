@@ -19,6 +19,7 @@ from homeassistant.components.media_player import (
     RepeatMode,
 )
 from homeassistant.components.media_player.errors import BrowseError
+from homeassistant.helpers.dispatcher import async_dispatcher_send
 import homeassistant.util.dt as dt_util
 from requests.exceptions import ConnectionError as reConnectionError
 
@@ -895,7 +896,7 @@ class MopidySpeaker:
 
         if value != self._attr_consume_mode:
             self._attr_consume_mode = value
-            self.entity.async_write_ha_state()
+            self.entity.force_update_ha_state()
             self.api.tracklist.set_consume(value)
 
     def set_mute(self, value):
@@ -984,7 +985,7 @@ class MopidySpeaker:
     def __ws_mute_changed(self, state_info):
         """Mute state has changed"""
         self._attr_is_volume_muted = state_info.mute
-        self.entity.async_write_ha_state()
+        self.entity.force_update_ha_state()
 
     @callback
     def __ws_options_changed(self, options_info):
@@ -992,15 +993,13 @@ class MopidySpeaker:
         self.hass.async_add_executor_job(
             self.__get_consume_mode
         )
-        self.entity.async_write_ha_state()
         self.hass.async_add_executor_job(
             self.__get_repeat_mode
         )
-        self.entity.async_write_ha_state()
         self.hass.async_add_executor_job(
             self.__get_shuffle_mode
         )
-        self.entity.async_write_ha_state()
+        self.entity.force_update_ha_state()
 
     @callback
     def __ws_playback_state_changed(self, state_info):
@@ -1008,34 +1007,34 @@ class MopidySpeaker:
         self._attr_state = self.__eval_state(state_info.new_state)
         if state_info.new_state == "stopped":
             self.queue.clear_current_track()
-        self.entity.async_write_ha_state()
+        self.entity.force_update_ha_state()
 
         if state_info.new_state == "playing":
             self.hass.async_add_executor_job(
-                self.queue.update_current_track, self.entity.async_write_ha_state
+                self.queue.update_current_track, self.entity.force_update_ha_state
             )
 
     @callback
     def __ws_seeked(self, seek_info):
         """Track time position has changed"""
         self.queue.set_current_track_position(int(seek_info.time_position / 1000))
-        self.entity.async_write_ha_state()
+        self.entity.force_update_ha_state()
 
     @callback
     def __ws_stream_title_changed(self, stream_info):
         """Stream title changed"""
         self.queue.set_stream_title(stream_info.title)
-        self.entity.async_write_ha_state()
+        self.entity.force_update_ha_state()
 
         self.hass.async_add_executor_job(
-            self.queue.update_current_track, self.entity.async_write_ha_state
+            self.queue.update_current_track, self.entity.force_update_ha_state
         )
 
     @callback
     def __ws_track_playback_paused(self, playback_state):
         """Playback of track was paused"""
         self._attr_state = self.__eval_state("paused")
-        self.entity.async_write_ha_state()
+        self.entity.force_update_ha_state()
 
     @callback
     def __ws_track_playback_resumed(self, playback_state):
@@ -1048,7 +1047,7 @@ class MopidySpeaker:
             current = True
         )
         self.queue.set_current_track_position(int(playback_state.time_position/1000))
-        self.entity.async_write_ha_state()
+        self.entity.force_update_ha_state()
 
     @callback
     def __ws_track_playback_started(self, playback_state):
@@ -1058,27 +1057,27 @@ class MopidySpeaker:
             tlid = playback_state.tl_track.tlid,
             current = True
         )
-        self.entity.async_write_ha_state()
+        self.entity.force_update_ha_state()
         self.hass.async_add_executor_job(
-            self.queue.update_current_image_url, playback_state.tl_track.track.uri, self.entity.async_write_ha_state
+            self.queue.update_current_image_url, playback_state.tl_track.track.uri, self.entity.force_update_ha_state
         )
 
         self.hass.async_add_executor_job(
-            self.queue.update_current_track, self.entity.async_write_ha_state
+            self.queue.update_current_track, self.entity.force_update_ha_state
         )
 
     @callback
     def __ws_tracklist_changed(self, tracklist_info):
         """The queue has changed"""
         self.hass.async_add_executor_job(
-            self.queue.update_queue_information, self.entity.async_write_ha_state
+            self.queue.update_queue_information, self.entity.force_update_ha_state
         )
 
     @callback
     def __ws_volume_changed(self, volume_info):
         """The volume was changed"""
         self._attr_volume_level = volume_info.volume
-        self.entity.async_write_ha_state()
+        self.entity.force_update_ha_state()
 
     @property
     def consume_mode(self):
