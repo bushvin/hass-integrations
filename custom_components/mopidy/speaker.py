@@ -538,6 +538,8 @@ class MopidySpeaker:
         | MediaPlayerEntityFeature.VOLUME_SET
     )
 
+    _first_failure = True
+
     def __init__(self,
         hass: HomeAssistant,
         hostname: str,
@@ -615,12 +617,20 @@ class MopidySpeaker:
         """Get the Mopidy Instance consume mode"""
         try:
             self._attr_consume_mode = self.api.tracklist.get_consume()
+            self._first_failure = True
         except reConnectionError as error:
             self._attr_is_available = False
-            _LOGGER.error(
-                "An error ocurred getting consume mode for %s.",
-                self.hostname
-            )
+            if self._first_failure:
+                self._first_failure = False
+                _LOGGER.error(
+                    "An error ocurred getting consume mode for %s.",
+                    self.hostname
+                )
+            else:
+                _LOGGER.debug(
+                    "An error ocurred getting consume mode for %s.",
+                    self.hostname
+                )
             _LOGGER.debug(str(error))
 
     def __get_repeat_mode(self):
@@ -952,10 +962,11 @@ class MopidySpeaker:
 
     def update(self):
         """Update the data known by the Speaker Object"""
-        self.__clear()
         self.__get_software_version()
 
         if not self._attr_is_available:
+            self.__clear()
+            self.queue.clear_current_track()
             return
 
         if not self.api.wsclient.wsthread.is_alive():
@@ -975,11 +986,13 @@ class MopidySpeaker:
 
     def volume_down(self):
         """Turn down the volume"""
-        self.set_volume(self._attr_volume_level - 1)
+        if self.volume_level is not None:
+            self.set_volume(self.volume_level - 5)
 
     def volume_up(self):
         """Turn up the volume"""
-        self.set_volume(self.volume_level + 1)
+        if self.volume_level is not None:
+            self.set_volume(self.volume_level + 5)
 
     @callback
     def __ws_mute_changed(self, state_info):
