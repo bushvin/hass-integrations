@@ -235,7 +235,7 @@ class MopidyMediaPlayerEntity(MediaPlayerEntity):
         )
 
     def force_update_ha_state(self):
-        self.async_schedule_update_ha_state(force_refresh=True)
+        self.schedule_update_ha_state(force_refresh=True)
 
     def clear_playlist(self) -> None:
         """Clear players playlist."""
