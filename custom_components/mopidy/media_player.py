@@ -93,6 +93,16 @@ PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend(
     }
 )
 
+SEARCH_SCHEMA = {
+    vol.Optional("exact"): cv.boolean,
+    vol.Optional("keyword"): cv.string,
+    vol.Optional("keyword_album"): cv.string,
+    vol.Optional("keyword_artist"): cv.string,
+    vol.Optional("keyword_genre"): cv.string,
+    vol.Optional("keyword_track_name"): cv.string,
+    vol.Optional("source"): cv.string,
+}
+
 
 def media_source_filter(item: BrowseMedia):
     """Filter media sources."""
@@ -125,28 +135,12 @@ async def async_setup_entry(
     platform.async_register_entity_service(SERVICE_RESTORE, {}, "service_restore")
     platform.async_register_entity_service(
         SERVICE_SEARCH,
-        {
-            vol.Optional("exact"): cv.boolean,
-            vol.Optional("keyword"): cv.string,
-            vol.Optional("keyword_album"): cv.string,
-            vol.Optional("keyword_artist"): cv.string,
-            vol.Optional("keyword_genre"): cv.string,
-            vol.Optional("keyword_track_name"): cv.string,
-            vol.Optional("source"): cv.string,
-        },
+        SEARCH_SCHEMA,
         "service_search",
     )
     platform.async_register_entity_service(
         SERVICE_GET_SEARCH_RESULT,
-        {
-            vol.Optional("exact"): cv.boolean,
-            vol.Optional("keyword"): cv.string,
-            vol.Optional("keyword_album"): cv.string,
-            vol.Optional("keyword_artist"): cv.string,
-            vol.Optional("keyword_genre"): cv.string,
-            vol.Optional("keyword_track_name"): cv.string,
-            vol.Optional("source"): cv.string,
-        },
+        SEARCH_SCHEMA,
         "service_get_search_result",
         supports_response=SupportsResponse.ONLY,
     )
@@ -294,34 +288,14 @@ class MopidyMediaPlayerEntity(MediaPlayerEntity):
 
     def service_search(self, **kwargs) -> None:
         """Search the Mopidy Server media library."""
-        query = {}
-        if isinstance(kwargs.get("keyword"), str):
-            query["any"] = [kwargs["keyword"].strip()]
-
-        if isinstance(kwargs.get("keyword_album"), str):
-            query["album"] = [kwargs["keyword_album"].strip()]
-
-        if isinstance(kwargs.get("keyword_artist"), str):
-            query["artist"] = [kwargs["keyword_artist"].strip()]
-
-        if isinstance(kwargs.get("keyword_genre"), str):
-            query["genre"] = [kwargs["keyword_genre"].strip()]
-
-        if isinstance(kwargs.get("keyword_track_name"), str):
-            query["track_name"] = [kwargs["keyword_track_name"].strip()]
-
-        if len(query.keys()) == 0:
-            return
-
-        sources = []
-        if isinstance(kwargs.get("source"), str):
-            sources = kwargs["source"].split(",")
-
         self.speaker.queue_tracks(
-            self.library.search_tracks(sources, query, kwargs.get("exact", False))
+            self._search(**kwargs)
         )
 
     def service_get_search_result(self, **kwargs) -> dict:
+        return {'result': self._search(**kwargs)}
+
+    def _search(self, **kwargs) -> dict:
         query = {}
         if isinstance(kwargs.get("keyword"), str):
             query["any"] = [kwargs["keyword"].strip()]
@@ -345,7 +319,7 @@ class MopidyMediaPlayerEntity(MediaPlayerEntity):
         if isinstance(kwargs.get("source"), str):
             sources = kwargs["source"].split(",")
 
-        return {'result': self.library.search_tracks(sources, query, kwargs.get("exact", False))}
+        return self.library.search_tracks(sources, query, kwargs.get("exact", False))
 
     def service_set_consume_mode(self, **kwargs) -> None:
         """Set/Unset Consume mode"""
