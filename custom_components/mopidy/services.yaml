@@ -72,6 +72,62 @@ search:
       selector:
         text:
 
+get_search_result:
+  name: Get search result
+  description:
+    Search the mopidy library for audio and returns any URIs found.
+  target:
+    entity:
+      integration: mopidy
+      domain: media_player
+  fields:
+    exact:
+      name: Match exactly
+      description: Should the search be an exact match
+      example: "false"
+      default: false
+      selector:
+        boolean:
+    keyword:
+      name: Search keywords
+      description: The keywords to search for. Will search all track fields.
+      example: Everlong
+      selector:
+        text:
+    keyword_album:
+      name: Search album title
+      description: The keywords to search for in album titles.
+      example: From Mars to Sirius
+      selector:
+        text:
+    keyword_artist:
+      name: Search artist
+      description: The keywords to search for in artists.
+      example: Queens of the Stoneage
+      selector:
+        text:
+    keyword_genre:
+      name: Search genre
+      description: The keywords to search for in genres.
+      example: rock
+      selector:
+        text:
+    keyword_track_name:
+      name: Search track name
+      description: The keywords to search for in track names.
+      example: Lazarus
+      selector:
+        text:
+    source:
+      name: Limit search to source
+      description:
+        URI sources to search.
+        `local`, `spotify` and `tunein` are the only supported options. Make sure to have these extensions enabled on
+        your Mopidy Server! Separate multiple sources with a comma (,).
+      example: "local,spotify"
+      selector:
+        text:
+
 set_consume_mode:
   name: 'Set the mopidy consume mode'
   description:

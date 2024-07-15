@@ -40,7 +40,7 @@ from homeassistant.const import (
     STATE_UNAVAILABLE,
     STATE_UNKNOWN,
 )
-from homeassistant.core import HomeAssistant
+from homeassistant.core import HomeAssistant, SupportsResponse
 from homeassistant.helpers import config_validation as cv, entity_platform
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 import homeassistant.util.dt as dt_util
@@ -54,6 +54,7 @@ from .const import (
     ICON,
     SERVICE_RESTORE,
     SERVICE_SEARCH,
+    SERVICE_GET_SEARCH_RESULT,
     SERVICE_SNAPSHOT,
     SERVICE_SET_CONSUME_MODE,
     YOUTUBE_URLS,
@@ -134,6 +135,20 @@ async def async_setup_entry(
             vol.Optional("source"): cv.string,
         },
         "service_search",
+    )
+    platform.async_register_entity_service(
+        SERVICE_GET_SEARCH_RESULT,
+        {
+            vol.Optional("exact"): cv.boolean,
+            vol.Optional("keyword"): cv.string,
+            vol.Optional("keyword_album"): cv.string,
+            vol.Optional("keyword_artist"): cv.string,
+            vol.Optional("keyword_genre"): cv.string,
+            vol.Optional("keyword_track_name"): cv.string,
+            vol.Optional("source"): cv.string,
+        },
+        "service_get_search_result",
+        supports_response=SupportsResponse.ONLY,
     )
     platform.async_register_entity_service(SERVICE_SNAPSHOT, {}, "service_snapshot")
     platform.async_register_entity_service(
@@ -305,6 +320,32 @@ class MopidyMediaPlayerEntity(MediaPlayerEntity):
         self.speaker.queue_tracks(
             self.library.search_tracks(sources, query, kwargs.get("exact", False))
         )
+
+    def service_get_search_result(self, **kwargs) -> dict:
+        query = {}
+        if isinstance(kwargs.get("keyword"), str):
+            query["any"] = [kwargs["keyword"].strip()]
+
+        if isinstance(kwargs.get("keyword_album"), str):
+            query["album"] = [kwargs["keyword_album"].strip()]
+
+        if isinstance(kwargs.get("keyword_artist"), str):
+            query["artist"] = [kwargs["keyword_artist"].strip()]
+
+        if isinstance(kwargs.get("keyword_genre"), str):
+            query["genre"] = [kwargs["keyword_genre"].strip()]
+
+        if isinstance(kwargs.get("keyword_track_name"), str):
+            query["track_name"] = [kwargs["keyword_track_name"].strip()]
+
+        if len(query.keys()) == 0:
+            return {'result': {}}
+
+        sources = []
+        if isinstance(kwargs.get("source"), str):
+            sources = kwargs["source"].split(",")
+
+        return {'result': self.library.search_tracks(sources, query, kwargs.get("exact", False))}
 
     def service_set_consume_mode(self, **kwargs) -> None:
         """Set/Unset Consume mode"""
