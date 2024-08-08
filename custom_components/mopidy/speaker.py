@@ -830,6 +830,11 @@ class MopidySpeaker:
         elif enqueue == MediaPlayerEnqueue.PLAY:
             # Insert media uris before current playing track into queue and play first of new uris
             index = self.queue.position
+            if index is None and self.queue.size is not None:
+                # no index, probably in stopped state;
+                # use the last element as index (if known);
+                # if all else fail, will play from the beginning
+                index = self.queue.size
             queued = self.queue_tracks(media_uris, at_position=index)
             self.media_play(index)
 
