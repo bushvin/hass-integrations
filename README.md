@@ -179,10 +179,6 @@ proxying them through Home Assistant is very resource intensive,
 causing delays. Therefore, I have decided to not proxy the art when
 using the Media Library for the time being.
 
-## Contributors
-
-- [Daniele Ricci](https://github.com/daniele-athome)
-
 ## Testers
 
 - [Jan Gutowski](https://github.com/Switch123456789)
