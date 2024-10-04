@@ -71,7 +71,53 @@ media_player:
 
 ### Services
 
-#### Service media\_player.play\_media
+#### Service mopidy.get_search_result
+
+*This service was originally developed by [Daniele Ricci](https://github.com/daniele-athome)*
+
+Search media based on keywords and return them for use in a script or automation.
+
+**Note:** One of the keyword fields **must** be used: `keyword`, `keyword_album`, `keyword_artist`, `keyword_genre` or `keyword_track_name`
+
+|Service data attribute|Optional|Description|Example|
+|-|-|-|-|
+|`entity_id`|no|String or list of `entity_id`s to search and return the result to.| |
+|`exact`|yes|String. Should the search be an exact match|false|
+|`keyword`|yes|String. The keywords to search for. Will search all track fields.|Everlong|
+|`keyword_album`|yes|String. The keywords to search for in album titles.|From Mars to Sirius|
+|`keyword_artist`|yes|String. The keywords to search for in artists.|Queens of the Stoneage|
+|`keyword_genre`|yes|String. The keywords to search for in genres.|rock|
+|`keyword_track_name`|yes|String. The keywords to search for in track names.|Lazarus|
+|`source`|yes|String. URI sources to search. `local`, `spotify` and `tunein` are the only supported options. Make sure to have these extensions enabled on your Mopidy Server! Separate multiple sources with a comma (,).|local,spotify|
+
+##### Example
+
+```yaml
+script:
+  search_and_play_music:
+    fields:
+      [...]
+    sequence:
+      - service: mopidy.get_search_result
+        data:
+          keyword_artist: "{{ keyword_artist }}"
+          keyword_track_name: "{{ keyword_track_name }}"
+          source: local
+        target:
+          entity_id: "{{ target }}"
+        response_variable: music_tracks # service returns something and result will be put into this variable
+      - if: "{{ music_tracks['media_player.music'].result|length > 0 }}"
+        then:
+          - service: media_player.play_media
+            data:
+              media_content_id: "{{ music_tracks['media_player.music'].result[0] }}"
+              media_content_type: music
+              enqueue: "{{ enqueue }}"
+            target:
+              entity_id: "{{ target }}"
+```
+
+#### Service media_player.play_media
 
 The `media_content_id` needs to be formatted according to the Mopidy URI scheme. These can be easily found using the *Developer tools*.
 
@@ -132,6 +178,10 @@ Due to the nature of the way Mopidy provides thumbnails of the media,
 proxying them through Home Assistant is very resource intensive,
 causing delays. Therefore, I have decided to not proxy the art when
 using the Media Library for the time being.
+
+## Contributors
+
+- [Daniele Ricci](https://github.com/daniele-athome)
 
 ## Testers
 
