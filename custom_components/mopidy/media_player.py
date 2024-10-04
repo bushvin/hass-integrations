@@ -40,7 +40,7 @@ from homeassistant.const import (
     STATE_UNAVAILABLE,
     STATE_UNKNOWN,
 )
-from homeassistant.core import HomeAssistant
+from homeassistant.core import HomeAssistant, SupportsResponse
 from homeassistant.helpers import config_validation as cv, entity_platform
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 import homeassistant.util.dt as dt_util
@@ -54,6 +54,7 @@ from .const import (
     ICON,
     SERVICE_RESTORE,
     SERVICE_SEARCH,
+    SERVICE_GET_SEARCH_RESULT,
     SERVICE_SNAPSHOT,
     SERVICE_SET_CONSUME_MODE,
     YOUTUBE_URLS,
@@ -92,6 +93,16 @@ PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend(
     }
 )
 
+SEARCH_SCHEMA = {
+    vol.Optional("exact"): cv.boolean,
+    vol.Optional("keyword"): cv.string,
+    vol.Optional("keyword_album"): cv.string,
+    vol.Optional("keyword_artist"): cv.string,
+    vol.Optional("keyword_genre"): cv.string,
+    vol.Optional("keyword_track_name"): cv.string,
+    vol.Optional("source"): cv.string,
+}
+
 
 def media_source_filter(item: BrowseMedia):
     """Filter media sources."""
@@ -124,16 +135,14 @@ async def async_setup_entry(
     platform.async_register_entity_service(SERVICE_RESTORE, {}, "service_restore")
     platform.async_register_entity_service(
         SERVICE_SEARCH,
-        {
-            vol.Optional("exact"): cv.boolean,
-            vol.Optional("keyword"): cv.string,
-            vol.Optional("keyword_album"): cv.string,
-            vol.Optional("keyword_artist"): cv.string,
-            vol.Optional("keyword_genre"): cv.string,
-            vol.Optional("keyword_track_name"): cv.string,
-            vol.Optional("source"): cv.string,
-        },
+        SEARCH_SCHEMA,
         "service_search",
+    )
+    platform.async_register_entity_service(
+        SERVICE_GET_SEARCH_RESULT,
+        SEARCH_SCHEMA,
+        "service_get_search_result",
+        supports_response=SupportsResponse.ONLY,
     )
     platform.async_register_entity_service(SERVICE_SNAPSHOT, {}, "service_snapshot")
     platform.async_register_entity_service(
@@ -279,6 +288,14 @@ class MopidyMediaPlayerEntity(MediaPlayerEntity):
 
     def service_search(self, **kwargs) -> None:
         """Search the Mopidy Server media library."""
+        self.speaker.queue_tracks(
+            self._search(**kwargs)
+        )
+
+    def service_get_search_result(self, **kwargs) -> dict:
+        return {'result': self._search(**kwargs)}
+
+    def _search(self, **kwargs) -> dict:
         query = {}
         if isinstance(kwargs.get("keyword"), str):
             query["any"] = [kwargs["keyword"].strip()]
@@ -296,15 +313,13 @@ class MopidyMediaPlayerEntity(MediaPlayerEntity):
             query["track_name"] = [kwargs["keyword_track_name"].strip()]
 
         if len(query.keys()) == 0:
-            return
+            return {'result': {}}
 
         sources = []
         if isinstance(kwargs.get("source"), str):
             sources = kwargs["source"].split(",")
 
-        self.speaker.queue_tracks(
-            self.library.search_tracks(sources, query, kwargs.get("exact", False))
-        )
+        return self.library.search_tracks(sources, query, kwargs.get("exact", False))
 
     def service_set_consume_mode(self, **kwargs) -> None:
         """Set/Unset Consume mode"""
