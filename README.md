@@ -92,29 +92,32 @@ Search media based on keywords and return them for use in a script or automation
 
 ##### Example
 
+The service is to be used as a normal service returning some data into a variable. The result is actually a dictionary
+with keys corresponding to the media player entities used as targets in the service call. Every item has in turn a
+`result` attribute containing the list of actual media IDs matching the search parameters.
+
 ```yaml
 script:
   search_and_play_music:
     fields:
       [...]
     sequence:
-      - service: mopidy.get_search_result
+      - action: mopidy.get_search_result
         data:
-          keyword_artist: "{{ keyword_artist }}"
-          keyword_track_name: "{{ keyword_track_name }}"
+          keyword_artist: "Some music artist"
+          keyword_track_name: "Some song title"
           source: local
         target:
-          entity_id: "{{ target }}"
-        response_variable: music_tracks # service returns something and result will be put into this variable
+          entity_id: "media_player.music"
+        response_variable: music_tracks # result will be returned into this variable
       - if: "{{ music_tracks['media_player.music'].result|length > 0 }}"
         then:
-          - service: media_player.play_media
+          - action: media_player.play_media
             data:
               media_content_id: "{{ music_tracks['media_player.music'].result[0] }}"
               media_content_type: music
-              enqueue: "{{ enqueue }}"
             target:
-              entity_id: "{{ target }}"
+              entity_id: "media_player.music"
 ```
 
 #### Service media_player.play_media
