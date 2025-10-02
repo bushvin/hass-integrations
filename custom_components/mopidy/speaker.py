@@ -251,7 +251,7 @@ class MopidyQueue:
             track_info["uri"] = track.uri
             track_info["source"] = track.uri.partition(":")[0]
 
-        if hasattr(track, "track_no"):
+        if hasattr(track, "track_no") and track.track_no is not None:
             track_info["number"] = int(track.track_no)
 
         if hasattr(track, "length"):
