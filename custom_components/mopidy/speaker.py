@@ -192,7 +192,7 @@ class MopidyQueue:
         elif (self._current_track_is_stream):
             image_url = None
         else:
-            _LOGGER.warning("No image_url found for %s", uri)
+            _LOGGER.info("No image_url found for %s", uri)
             image_url = None
 
         return image_url
